@@ -1,113 +1,165 @@
 # -*- coding: utf-8 -*-
 """
-Created on Sat Oct 19 15:08:37 2024
+Created on Sat Oct 19 23:57:43 2024
 
 @author: Robin
 """
 
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import messagebox, scrolledtext, filedialog
 import chess
 import chess.engine
 
-VERSION = "chessbot v play against the bot"
+VERSION = "chessbot v2"
 
 class ChessApp:
-    def __init__(self, root, player_name="Player 1", bot_name="Bot", elo=1200):
+    def __init__(self, root):
         # Initial setup for the ChessApp class
         self.root = root
-        self.root.title("Chess Game")
+        self.root.title("Schachspiel")
+        self.root.geometry("800x600")
         self.board = chess.Board()
-        self.engine_path = r"C:\Users\Robin\OneDrive - Schulen Biberist\Desktop\chessbot\stockfish\stockfish-windows-x86-64-avx2.exe"
-        self.engine = chess.engine.SimpleEngine.popen_uci(self.engine_path)
+        self.engine_path = self.ask_for_engine_path()  # Ask for Stockfish path
+        if not self.engine_path:
+            messagebox.showerror("Fehler", "Kein Pfad zur Engine ausgewählt. Das Programm wird beendet.")
+            root.quit()
+        else:
+            self.engine = chess.engine.SimpleEngine.popen_uci(self.engine_path)
         self.squares = {}
         self.selected_piece = None
-        self.elo = elo
-        self.mode = None  # Default mode is None until the user selects a game mode
-        self.player_name = player_name
-        self.bot_name = bot_name
-        self.create_menu()  # Create the menu initially
-        self.is_large_window = False  # Default is small window
+        self.elo = 800  # Start in easy mode by default
+        self.mode = "bot"  # Set default mode to bot play
+        self.player_name = "Spieler 1"
+        self.bot_name = "Bot"
+        self.create_game_interface()  # Directly create the game interface
+        self.board.reset()
+        self.update_board()
+        self.output_text.delete('1.0', tk.END)
+        self.output_text.insert(tk.END, "Weiß ist am Zug\n")
 
-    def create_menu(self):
-        # Create the main menu with buttons for different options
-        self.clear_screen()
+    def ask_for_engine_path(self):
+        # Open a dialog to ask for the path of the Stockfish engine
+        return filedialog.askopenfilename(title="Wähle die Stockfish-Engine aus", filetypes=[("Executable Files", "*.exe")])
 
-        self.menu_frame = tk.Frame(self.root)
-        self.menu_frame.pack(pady=20)
+    def create_game_interface(self):
+        # Create left menu frame
+        self.menu_frame = tk.Frame(self.root, bg="black")
+        self.menu_frame.pack(side=tk.LEFT, fill=tk.Y, padx=20, pady=20)
 
-        tk.Label(self.menu_frame, text=f"Welcome to {VERSION}", font=("Arial", 16)).pack(pady=10)
+        welcome_label = tk.Label(self.menu_frame, text="Willkommen", font=("Arial", 20), bg="black", fg="white")
+        welcome_label.pack(pady=10)
 
-        tk.Button(self.menu_frame, text="Play against the Bot", font=("Arial", 14), command=self.play_against_bot).pack(pady=5)
-        tk.Button(self.menu_frame, text="Play against a Friend", font=("Arial", 14), command=self.play_against_friend).pack(pady=5)
-        tk.Button(self.menu_frame, text="Analyze Game", font=("Arial", 14), command=self.analyze_game).pack(pady=5)
-        tk.Button(self.menu_frame, text="Documentation", font=("Arial", 14), command=self.show_documentation).pack(pady=5)
-        tk.Button(self.menu_frame, text="Toggle Window Size", font=("Arial", 14), command=self.toggle_window_size).pack(pady=5)
-        tk.Button(self.menu_frame, text="Exit/Quit", font=("Arial", 14), command=self.root.quit).pack(pady=5)
+        self.play_bot_button = tk.Button(self.menu_frame, text="Gegen den Bot spielen", font=("Arial", 16), command=self.display_difficulty_options, bg="gray", fg="white")
+        self.play_bot_button.pack(pady=10, fill=tk.X)
 
-    def play_against_bot(self):
-        self.mode = "bot"
-        self.create_board()
+        self.play_friend_button = tk.Button(self.menu_frame, text="Gegen einen Freund spielen", font=("Arial", 16), command=self.start_friend_game, bg="gray", fg="white")
+        self.play_friend_button.pack(pady=10, fill=tk.X)
 
-    def play_against_friend(self):
-        self.mode = "friend"
-        self.create_board()
+        self.analyze_button = tk.Button(self.menu_frame, text="Spiel analysieren", font=("Arial", 16), command=self.analyze_game, bg="gray", fg="white")
+        self.analyze_button.pack(pady=10, fill=tk.X)
 
-    def analyze_game(self):
-        messagebox.showinfo("Analyze Game", "Analysis feature is not yet implemented!")
+        self.bigger_window_button = tk.Button(self.menu_frame, text="Größeres Fenster", font=("Arial", 14), command=self.toggle_window_size, bg="gray", fg="white")
+        self.bigger_window_button.pack(pady=10, fill=tk.X)
 
-    def show_documentation(self):
-        messagebox.showinfo("Documentation", "This is the chess bot application.\nPlay against the bot or a friend!")
+        self.exit_button = tk.Button(self.menu_frame, text="Beenden (ESC)", font=("Arial", 14), command=self.root.quit, bg="gray", fg="white")
+        self.exit_button.pack(pady=10, fill=tk.X)
 
-    def toggle_window_size(self):
-        # Toggle between small and large window size
-        if self.is_large_window:
-            self.root.geometry("800x600")
-            self.is_large_window = False
-        else:
-            self.root.geometry("1200x800")
-            self.is_large_window = True
-
-    def create_board(self):
-        # Create the visual representation of the chessboard with player names and a turn indicator
-        self.clear_screen()
-
-        # Frame for the bot's name and captured pieces
-        self.top_frame = tk.Frame(self.root)
-        self.top_frame.pack(side=tk.TOP)
-        self.top_label = tk.Label(self.top_frame, text=self.bot_name if self.mode == "bot" else "Player 2", font=("Arial", 16), pady=10)
-        self.top_label.pack(side=tk.LEFT)
+        # Frame for the bot's name and turn indicator
+        self.top_frame = tk.Frame(self.root, bg="black")
+        self.top_frame.pack(side=tk.TOP, fill=tk.X, padx=20, pady=10)
+        self.top_label = tk.Label(self.top_frame, text=f"Schwarz: {self.bot_name}", font=("Arial", 16), fg="green", bg="black", pady=10)
+        self.top_label.pack(side=tk.LEFT, expand=True, anchor="center")
 
         # Create turn indicator
-        self.turn_indicator = tk.Label(self.top_frame, text="White's Turn", font=("Arial", 16), pady=10)
-        self.turn_indicator.pack(side=tk.RIGHT)
+        self.turn_indicator = tk.Label(self.top_frame, text="Weiß ist am Zug", font=("Arial", 16, "bold"), fg="white", bg="black", pady=10, relief=tk.RAISED, padx=10)
+        self.turn_indicator.pack(side=tk.RIGHT, padx=10, expand=True, anchor="center")
 
         # Frame for the chessboard
-        self.board_frame = tk.Frame(self.root)
-        self.board_frame.pack()
+        self.board_frame = tk.Frame(self.root, bg="black")
+        self.board_frame.pack(side=tk.LEFT, padx=20, pady=20)
 
         for row in range(8):
             for col in range(8):
-                square = tk.Canvas(self.board_frame, width=60, height=60)
+                square = tk.Canvas(self.board_frame, width=60, height=60, highlightthickness=0)
                 square.grid(row=row, column=col)
                 square.bind("<Button-1>", lambda event, r=row, c=col: self.on_square_click(r, c))
                 self.squares[(row, col)] = square
 
+        # Draw the initial board with pieces
+        self.update_board()
+
         # Frame for the player's name and captured pieces
-        self.bottom_frame = tk.Frame(self.root)
-        self.bottom_frame.pack(side=tk.BOTTOM)
-        self.bottom_label = tk.Label(self.bottom_frame, text=self.player_name, font=("Arial", 16), pady=10)
+        self.bottom_frame = tk.Frame(self.root, bg="black")
+        self.bottom_frame.pack(side=tk.BOTTOM, fill=tk.X)
+        self.bottom_label = tk.Label(self.bottom_frame, text=f"Weiß: {self.player_name}", font=("Arial", 16), fg="green", bg="black", pady=10)
         self.bottom_label.pack(side=tk.LEFT)
 
-        # Create a reset button next to the board
-        self.reset_button = tk.Button(self.root, text="Reset Board", font=("Arial", 12), command=self.reset_board)
-        self.reset_button.pack(pady=10)
+        # Text box for move history or bot output
+        self.output_frame = tk.Frame(self.root, bg="black")
+        self.output_frame.pack(side=tk.RIGHT, fill=tk.Y, padx=20, pady=20)
+        self.output_text = scrolledtext.ScrolledText(self.output_frame, width=30, height=20, font=("Arial", 12), bg="black", fg="white", wrap=tk.WORD)
+        self.output_text.pack(fill=tk.BOTH, expand=True)
+        self.output_text.insert(tk.END, "Weiß ist am Zug\n")
 
-        # Update the board to reflect the current game state
+    def display_difficulty_options(self):
+        # Display difficulty options for bot play
+        self.clear_screen()
+        self.difficulty_prompt = tk.Frame(self.root, bg="black")
+        self.difficulty_prompt.pack(expand=True)
+        tk.Label(self.difficulty_prompt, text="Wähle den Schwierigkeitsgrad", font=("Arial", 16), bg="black", fg="white").pack(pady=10)
+
+        self.easy_button = tk.Button(self.difficulty_prompt, text="Einfach", font=("Arial", 16), command=lambda: self.start_game(800), bg="gray", fg="white")
+        self.easy_button.pack(pady=5, fill=tk.X)
+
+        self.medium_button = tk.Button(self.difficulty_prompt, text="Mittel", font=("Arial", 16), command=lambda: self.start_game(1200), bg="gray", fg="white")
+        self.medium_button.pack(pady=5, fill=tk.X)
+
+        self.hard_button = tk.Button(self.difficulty_prompt, text="Schwer", font=("Arial", 16), command=lambda: self.start_game(1800), bg="gray", fg="white")
+        self.hard_button.pack(pady=5, fill=tk.X)
+
+    def start_game(self, elo):
+        # Start the game with the selected difficulty
+        self.elo = elo
+        self.difficulty_prompt.destroy()  # Remove difficulty selection
+        self.create_game_interface()
+        self.board.reset()
         self.update_board()
+        self.output_text.delete('1.0', tk.END)
+        self.output_text.insert(tk.END, "Weiß ist am Zug\n")
+
+    def toggle_window_size(self):
+        # Toggle window size between normal and bigger
+        if self.root.state() == "normal":
+            self.root.state("zoomed")
+        else:
+            self.root.state("normal")
+
+    def start_friend_game(self):
+        # Start a game against a friend
+        self.mode = "friend"
+        self.board.reset()
+        self.update_board()
+        self.output_text.delete('1.0', tk.END)
+        self.output_text.insert(tk.END, "Weiß ist am Zug\n")
+
+    def analyze_game(self):
+        # Placeholder function for game analysis
+        messagebox.showinfo("Analyse", "Spielanalyse ist noch nicht implementiert.")
 
     def update_board(self):
         # Update the chessboard's visual representation
+        if self.mode == "friend":
+                # Toggle turn indicator for friend play
+                if self.board.turn == chess.WHITE:
+                        self.turn_indicator.config(text="Weiß ist am Zug", fg="white", bg="#4CAF50")  # Green indicator for white's turn
+                else:
+                        self.turn_indicator.config(text="Schwarz ist am Zug", fg="black", bg="#FFC107")  # Yellow indicator for black's turn
+        else:
+                # Update the turn indicator for bot play
+                if self.board.turn == chess.WHITE:
+                        self.turn_indicator.config(text="Weiß ist am Zug", fg="white", bg="#4CAF50")  # Green indicator for white's turn
+                else:
+                        self.turn_indicator.config(text="Schwarz ist am Zug", fg="black", bg="#FFC107")  # Yellow indicator for black's turn
         pieces = {
             'r': '♜', 'n': '♞', 'b': '♝', 'q': '♛', 'k': '♚', 'p': '♟',
             'R': '♖', 'N': '♘', 'B': '♗', 'Q': '♕', 'K': '♔', 'P': '♙'
@@ -116,7 +168,7 @@ class ChessApp:
             for col in range(8):
                 square = self.squares[(row, col)]
                 square.delete("all")
-                color = "white" if (row + col) % 2 == 0 else "gray"
+                color = "#D18B47" if (row + col) % 2 == 0 else "#FFCE9E"
                 square.create_rectangle(0, 0, 60, 60, outline="black", fill=color)
                 piece = self.board.piece_at(chess.square(col, 7 - row))
                 if piece:
@@ -125,9 +177,9 @@ class ChessApp:
 
         # Update the turn indicator
         if self.board.turn == chess.WHITE:
-            self.turn_indicator.config(text="White's Turn", fg="black")
+            self.turn_indicator.config(text="Weiß ist am Zug", fg="white", bg="#4CAF50")  # Green indicator for white's turn
         else:
-            self.turn_indicator.config(text="Black's Turn", fg="black")
+            self.turn_indicator.config(text="Schwarz ist am Zug", fg="black", bg="#FFC107")  # Yellow indicator for black's turn
 
     def on_square_click(self, row, col):
         # Handle the event when a square on the board is clicked
@@ -143,15 +195,17 @@ class ChessApp:
                 self.board.push(move)
                 self.selected_piece = None
                 self.update_board()
+                self.output_text.insert(tk.END, f"Spieler hat gezogen: {move}\n")
                 if not self.board.is_game_over():
                     if self.mode == "bot" and self.board.turn == chess.BLACK:
                         self.bot_move()
                 else:
-                    messagebox.showinfo("Game Over", f"Result: {self.board.result()}")
+                    messagebox.showinfo("Spiel beendet", f"Ergebnis: {self.board.result()}")
+                    self.output_text.insert(tk.END, f"Spiel beendet: {self.board.result()}\n")
             else:
                 self.selected_piece = None
                 self.update_board()
-                messagebox.showwarning("Invalid Move", "This is not a legal move.")
+                messagebox.showwarning("Ungültiger Zug", "Das ist kein gültiger Zug.")
 
     def highlight_moves(self, square):
         # Highlight possible moves for the selected piece
@@ -167,8 +221,10 @@ class ChessApp:
         result = self.engine.play(self.board, chess.engine.Limit(time=time_limit))
         self.board.push(result.move)
         self.update_board()
+        self.output_text.insert(tk.END, f"Bot hat gezogen: {result.move}\n")
         if self.board.is_game_over():
-            messagebox.showinfo("Game Over", f"Result: {self.board.result()}")
+            messagebox.showinfo("Spiel beendet", f"Ergebnis: {self.board.result()}")
+            self.output_text.insert(tk.END, f"Spiel beendet: {self.board.result()}\n")
 
     def get_time_limit(self, elo):
         # Determine the time limit for the bot based on its ELO rating
@@ -195,14 +251,14 @@ class ChessApp:
 
     def on_closing(self):
         # Handle the closing event
-        self.engine.quit()
+        if hasattr(self, 'engine') and self.engine:
+            self.engine.quit()
         self.root.destroy()
+        messagebox.showinfo("Auf Wiedersehen", "Das Programm wird jetzt beendet.")
 
 if __name__ == "__main__":
     # Main program: Initialize and start the GUI
     root = tk.Tk()
-    root.geometry("800x600")  # Start with a default window size
     app = ChessApp(root)
     root.protocol("WM_DELETE_WINDOW", app.on_closing)
     root.mainloop()
-
