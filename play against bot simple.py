@@ -1,17 +1,16 @@
 # -*- coding: utf-8 -*-
 """
-Created on Sat Oct 19 14:46:15 2024
+Created on Thu Oct 17 22:38:07 2024
 
-@author: Robin
+@author: Robin Corbonnois
 """
-
 
 import tkinter as tk
 from tkinter import messagebox
 import chess
 import chess.engine
 
-VERSION = "chessbot v play against the bot"
+VERSION = "chessbot 14.07 vquit"
 
 class ChessApp:
     def __init__(self, root, player_name="Player 1", bot_name="Bot", elo=1200):
@@ -19,7 +18,7 @@ class ChessApp:
         self.root = root
         self.root.title("Chess Game")
         self.board = chess.Board()
-        self.engine_path = r"C:\Users\Robin\OneDrive - Schulen Biberist\Desktop\chessbot\stockfish\stockfish-windows-x86-64-avx2.exe"
+        self.engine_path = r"C:\Users\Robin Corbonnois\OneDrive - TBZ\Desktop\python\chessbot_project_2\github\stockfish\stockfish-windows-x86-64-avx2.exe"
         self.engine = chess.engine.SimpleEngine.popen_uci(self.engine_path)
         self.squares = {}
         self.selected_piece = None
@@ -30,7 +29,7 @@ class ChessApp:
         self.create_board()  # Create the board initially
 
     def create_board(self):
-        # Create the visual representation of the chessboard with player names and a turn indicator
+        # Create the visual representation of the chessboard with player names
         self.clear_screen()
 
         # Frame for the bot's name and captured pieces
@@ -38,10 +37,6 @@ class ChessApp:
         self.top_frame.pack(side=tk.TOP)
         self.top_label = tk.Label(self.top_frame, text=self.bot_name, font=("Arial", 16), pady=10)
         self.top_label.pack(side=tk.LEFT)
-
-        # Create turn indicator
-        self.turn_indicator = tk.Label(self.top_frame, text="White's Turn", font=("Arial", 16), pady=10)
-        self.turn_indicator.pack(side=tk.RIGHT)
 
         # Frame for the chessboard
         self.board_frame = tk.Frame(self.root)
@@ -83,12 +78,6 @@ class ChessApp:
                 if piece:
                     symbol = pieces[piece.symbol()]
                     square.create_text(30, 30, text=symbol, font=("Arial", 24), anchor="center")
-
-        # Update the turn indicator
-        if self.board.turn == chess.WHITE:
-            self.turn_indicator.config(text="White's Turn", fg="black")
-        else:
-            self.turn_indicator.config(text="Black's Turn", fg="black")
 
     def on_square_click(self, row, col):
         # Handle the event when a square on the board is clicked

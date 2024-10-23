@@ -1,14 +1,16 @@
 # -*- coding: utf-8 -*-
 """
-Created on Sat Oct 19 23:57:43 2024
+Created on Tue Oct 22 10:35:27 2024
 
 @author: Robin
 """
 
 import tkinter as tk
 from tkinter import messagebox, scrolledtext
+from tkinter import PhotoImage  # Add support for profile pictures
 import chess
 import chess.engine
+from PIL import Image, ImageTk  # For handling images like profile pictures and flags
 
 VERSION = "chessbot v2"
 
@@ -20,7 +22,7 @@ class ChessApp:
         self.root.state('zoomed')  # Start in full screen
         self.root.configure(bg="black")
         self.board = chess.Board()
-        self.engine_path = r"C:\\Users\\Robin\\OneDrive - Schulen Biberist\\Desktop\\this-is\\stockfish\\stockfish-windows-x86-64-avx2.exe"
+        self.engine_path = r"C:\Users\Robin Corbonnois\OneDrive - TBZ\Desktop\python\chessbot_project_2\github\stockfish\stockfish-windows-x86-64-avx2.exe"
         if not self.engine_path:
             messagebox.showerror("Fehler", "Kein Pfad zur Engine ausgewählt. Das Programm wird beendet.")
             root.quit()
@@ -32,9 +34,15 @@ class ChessApp:
         self.mode = "bot"  # Set default mode to bot play
         self.player_name = "Spieler 1"
         self.bot_name = "Bot"
-        self.create_game_interface()  # Directly start with the game interface
-        self.board.reset()
-        self.update_board()
+        self.player_country = "Deutschland"  # Default country
+        self.bot_country = "Computer"
+        self.player_image = None
+        self.bot_image = None
+        self.captured_pieces_player = []
+        self.captured_pieces_bot = []
+        self.create_game_interface()
+        self.board.reset()  # Directly start with the game interface
+        
 
     def create_game_interface(self):
         # Create game interface layout
@@ -60,7 +68,7 @@ class ChessApp:
         welcome_label = tk.Label(self.menu_frame, text="Br Bot GUI", font=("Arial", 20), bg="black", fg="white")
         welcome_label.pack(pady=10)
 
-        self.play_bot_button = tk.Button(self.menu_frame, text="Gegen den Bot spielen", font=("Arial", 16), command=self.display_difficulty_options, bg="gray", fg="white")
+        self.play_bot_button = tk.Button(self.menu_frame, text="Gegen den Bot spielen", font=("Arial", 16), command=lambda: self.display_difficulty_options(), bg="gray", fg="white")
         self.play_bot_button.pack(pady=10, fill=tk.X)
 
         self.play_friend_button = tk.Button(self.menu_frame, text="Gegen einen Freund spielen", font=("Arial", 16), command=self.start_friend_game, bg="gray", fg="white")
@@ -86,41 +94,99 @@ class ChessApp:
         self.board_frame.grid(row=1, column=1, padx=20, pady=20, sticky="nsew")
 
         # Calculate square size dynamically based on the available space
-        self.square_size = 110  # Adjusted size for better visibility and layout
+        self.square_size = 100  # Adjusted size for better visibility and layout
 
         for row in range(8):
             for col in range(8):
                 square = tk.Canvas(self.board_frame, width=self.square_size, height=self.square_size, highlightthickness=0)
                 square.grid(row=row, column=col)
-                square.bind("<Button-1>", lambda event, r=row, c=col: self.on_square_click(r, c))
+                square.bind("<Button-1>", lambda event, r=row, c=col: self.handle_square_click(r, c))
                 self.squares[(row, col)] = square
 
         # Draw the initial board with pieces
-        self.update_board()
+        
+
+        # Add labels for columns and rows
+        for col in range(8):
+            tk.Label(self.board_frame, text=chr(65 + col), font=("Arial", 10), bg="black", fg="white").grid(row=8, column=col)  # Column labels (A-H)
+        for row in range(8):
+            tk.Label(self.board_frame, text=str(8 - row), font=("Arial", 10), bg="black", fg="white").grid(row=row, column=8)  # Row labels (1-8)
 
         # Frame for player's information and clock - aligned above the board
         self.top_info_frame = tk.Frame(self.general_frame, bg="black")
         self.top_info_frame.grid(row=0, column=1, sticky="e", padx=(0, 20))
         self.top_label = tk.Label(self.top_info_frame, text=f"{self.bot_name}", font=("Arial", 16), fg="green", bg="black")
         self.top_label.pack(side=tk.LEFT, padx=5)
+
+        # Adding bot profile picture and flag
+        self.bot_image = self.load_profile_image(r"C:\Users\Robin Corbonnois\OneDrive - TBZ\Desktop\python\chessbot_project_2\github\images\Profilbild\default.jpg")
+        self.bot_photo_label = tk.Label(self.top_info_frame, image=self.bot_image, bg="black")
+        self.bot_photo_label.pack(side=tk.LEFT, padx=5)
+        
         self.black_clock = tk.Label(self.top_info_frame, text="10:00", font=("Arial", 14), fg="black", bg="#FFC107", padx=10)
         self.black_clock.pack(side=tk.LEFT, padx=5)
+
+        # Add a bot piece bank frame under the bot's name
+        self.bot_bank_frame = tk.Frame(self.top_info_frame, bg="black")
+        self.bot_bank_frame.pack(side=tk.LEFT, padx=10)
+        self.bot_bank_label = tk.Label(self.bot_bank_frame, text="Gefangene Figuren: ", font=("Arial", 12), fg="white", bg="black")
+        self.bot_bank_label.pack()
+        
+        self.bot_bank_canvas = tk.Canvas(self.bot_bank_frame, width=200, height=50, bg="black", highlightthickness=0)
+        self.bot_bank_canvas.pack()
 
         # Frame for opponent's information and clock - aligned below the board
         self.bottom_info_frame = tk.Frame(self.general_frame, bg="black")
         self.bottom_info_frame.grid(row=2, column=1, sticky="w", padx=(20, 0))
         self.white_clock = tk.Label(self.bottom_info_frame, text="10:00", font=("Arial", 14), fg="white", bg="#4CAF50", padx=10)
         self.white_clock.pack(side=tk.LEFT, padx=5)
+
+        # Adding player profile picture and flag
+        self.player_image = self.load_profile_image(r"C:\Users\Robin Corbonnois\OneDrive - TBZ\Desktop\python\chessbot_project_2\github\images\Profilbild\default.jpg")
+        self.player_photo_label = tk.Label(self.bottom_info_frame, image=self.player_image, bg="black")
+        self.player_photo_label.pack(side=tk.LEFT, padx=5)
+        
         self.bottom_label = tk.Label(self.bottom_info_frame, text=f"{self.player_name}", font=("Arial", 16), fg="green", bg="black")
         self.bottom_label.pack(side=tk.LEFT, padx=5)
 
+        # Add a player piece bank frame under the player's name
+        self.player_bank_frame = tk.Frame(self.bottom_info_frame, bg="black")
+        self.player_bank_frame.pack(side=tk.LEFT, padx=10)
+        self.player_bank_label = tk.Label(self.player_bank_frame, text="Gefangene Figuren: ", font=("Arial", 12), fg="white", bg="black")
+        self.player_bank_label.pack()
+        
+        self.player_bank_canvas = tk.Canvas(self.player_bank_frame, width=200, height=50, bg="black", highlightthickness=0)
+        self.player_bank_canvas.pack()
+        
         # Text box for move history or bot output - right of the board
         self.output_frame = tk.Frame(self.general_frame, bg="black")
         self.output_frame.grid(row=1, column=2, sticky="nsew", padx=10, pady=20)
         self.general_frame.grid_columnconfigure(2, weight=5)  # Make sure the right frame aligns properly and has enough space
         self.output_text = scrolledtext.ScrolledText(self.output_frame, width=30, height=40, font=("Arial", 12), bg="black", fg="white", wrap=tk.WORD)
         self.output_text.pack(fill=tk.BOTH, expand=True)
-        self.output_text.insert(tk.END, "Willkommen beim Schachbot! Weiß ist am Zug\n")
+        self.output_text.insert(tk.END, "Willkommen beim Schachbot! Weiß ist am Zug")
+        self.update_board()
+        self.update_board()
+
+    def load_profile_image(self, path):
+        # Load and resize profile image for display
+        image = Image.open(path)
+        image = image.resize((50, 50), Image.LANCZOS)
+        return ImageTk.PhotoImage(image)
+
+    def bot_move(self):
+        # Bot makes a move
+        result = self.engine.play(self.board, chess.engine.Limit(time=0.1))
+        if self.board.is_capture(result.move):
+            captured_piece = self.board.piece_at(result.move.to_square)
+            self.captured_pieces_bot.append(captured_piece.symbol())
+        self.board.push(result.move)
+        self.update_board()
+        self.output_text.insert(tk.END, f"Bot: {result.move}\n")
+        if self.board.is_check():
+            king_square = self.board.king(self.board.turn)
+            row, col = divmod(king_square, 8)
+            self.squares[(7 - row, col)].create_rectangle(0, 0, self.square_size, self.square_size, outline="red", width=5)
 
     def display_difficulty_options(self):
         # Display difficulty options for bot play
@@ -138,13 +204,59 @@ class ChessApp:
         self.hard_button = tk.Button(self.difficulty_prompt, text="Schwer", font=("Arial", 16), command=lambda: self.start_game(1800), bg="gray", fg="white")
         self.hard_button.pack(pady=10, fill=tk.X)
 
+    def start_game(self, elo):
+        # Set the elo and reset the game board
+        self.elo = elo
+        self.mode = "bot"
+        self.board.reset()
+        self.captured_pieces_player.clear()
+        self.captured_pieces_bot.clear()
+        self.create_game_interface()  # Recreate the game interface to avoid deletion errors
+        self.output_text.delete('1.0', tk.END)
+        self.output_text.insert(tk.END, "Weiß ist am Zug\n")
+        self.play_bot_button.configure(bg="yellow")  # Highlight the Play against Bot button
+        self.play_friend_button.configure(bg="gray")  # Reset the friend button highlight
+
+    def handle_square_click(self, row, col):
+        # Handle click event for each square, either player or bot move
+        selected_square = chess.square(col, 7 - row)
+        if self.selected_piece is not None:
+            move = chess.Move(self.selected_piece, selected_square)
+            if move in self.board.legal_moves:
+                if self.board.is_capture(move):
+                    captured_piece = self.board.piece_at(move.to_square)
+                    self.captured_pieces_player.append(captured_piece.symbol())
+                self.board.push(move)
+                self.selected_piece = None
+                self.update_board()
+                self.output_text.insert(tk.END, f"Move: {move}\n")
+                if self.board.is_check():
+                    king_square = self.board.king(self.board.turn)
+                    row, col = divmod(king_square, 8)
+                    self.squares[(7 - row, col)].create_rectangle(0, 0, self.square_size, self.square_size, outline="red", width=5)
+                if self.mode == "bot" and not self.board.turn:
+                    self.bot_move()
+            else:
+                self.selected_piece = None  # Deselect if move is not legal
+                self.update_board()  # Remove any highlighted moves
+        else:
+            piece = self.board.piece_at(selected_square)
+            if piece and piece.color == self.board.turn:
+                self.selected_piece = selected_square
+                self.highlight_moves(selected_square)
+
     def start_friend_game(self):
         # Start a game against a friend
         self.mode = "friend"
         self.board.reset()
-        self.update_board()
+        self.captured_pieces_player.clear()
+        self.captured_pieces_bot.clear()
+        self.create_game_interface()  # Recreate the game interface to avoid deletion errors
         self.output_text.delete('1.0', tk.END)
         self.output_text.insert(tk.END, "Weiß ist am Zug\n")
+        self.play_friend_button.configure(bg="yellow")  # Highlight the Play against Friend button
+        self.play_bot_button.configure(bg="gray")  # Reset the bot button highlight
+        self.top_label.config(text="Gegner")  # Update label to indicate opponent in friend mode
 
     def analyze_game(self):
         # Placeholder function for game analysis
@@ -157,9 +269,20 @@ class ChessApp:
         else:
             self.root.state("normal")
 
+    def highlight_moves(self, square):
+        # Highlight possible moves for the selected piece with a filled oval
+        moves = list(self.board.legal_moves)
+        for move in moves:
+            if move.from_square == square:
+                row, col = divmod(move.to_square, 8)
+                self.squares[(7 - row, col)].create_oval(35, 35, self.square_size - 35, self.square_size - 35, fill="green", outline="")
+
     def update_board(self):
+        # Ensure that the piece banks are initialized before updating
+        if not hasattr(self, 'bot_bank_canvas') or not hasattr(self, 'player_bank_canvas'):
+            return
         # Update the chessboard's visual representation
-        pieces = {
+        self.pieces = {
             'r': '♜', 'n': '♞', 'b': '♝', 'q': '♛', 'k': '♚', 'p': '♟',
             'R': '♖', 'N': '♘', 'B': '♗', 'Q': '♕', 'K': '♔', 'P': '♙'
         }
@@ -171,8 +294,25 @@ class ChessApp:
                 square.create_rectangle(0, 0, self.square_size, self.square_size, outline="black", fill=color)
                 piece = self.board.piece_at(chess.square(col, 7 - row))
                 if piece:
-                    symbol = pieces[piece.symbol()]
+                    symbol = self.pieces[piece.symbol()]
                     square.create_text(self.square_size // 2, self.square_size // 2, text=symbol, font=("Arial", int(self.square_size * 0.5)), anchor="center")
+        if self.board.is_check():
+            king_square = self.board.king(self.board.turn)
+            row, col = divmod(king_square, 8)
+            self.squares[(7 - row, col)].create_rectangle(0, 0, self.square_size, self.square_size, outline="red", width=5)
+        self.update_piece_banks()
+
+    def update_piece_banks(self):
+        # Update the piece banks for both the player and the bot
+        self.bot_bank_canvas.delete("all")
+        self.player_bank_canvas.delete("all")
+
+        piece_x_offset = 10
+        for idx, piece_symbol in enumerate(self.captured_pieces_bot):
+            self.bot_bank_canvas.create_text(piece_x_offset + idx * 20, 25, text=self.pieces.get(piece_symbol, piece_symbol), font=("Arial", 16), fill="white")
+        
+        for idx, piece_symbol in enumerate(self.captured_pieces_player):
+            self.player_bank_canvas.create_text(piece_x_offset + idx * 20, 25, text=self.pieces.get(piece_symbol, piece_symbol), font=("Arial", 16), fill="white")
 
     def show_rules(self):
         # Display chess rules in a new window
