@@ -1,9 +1,7 @@
 import tkinter as tk
 from tkinter import messagebox, scrolledtext, filedialog
-from tkinter import PhotoImage, ttk
 import chess
 import chess.engine
-from PIL import Image, ImageTk
 import os
 import time
 
@@ -48,77 +46,17 @@ class ChessApp:
         self.bot_time = None  # Bot timer setting
         self.player_increment = 0  # Player increment per move
         self.bot_increment = 0  # Bot increment per move
-        self.create_main_menu()
+        self.player_time_left = None
+        self.bot_time_left = None
+        self.create_game_interface()
 
     def browse_for_engine(self):
         # Function to prompt user to browse for the Stockfish engine
         engine_path = filedialog.askopenfilename(title="Select Stockfish Engine", filetypes=[("Executable Files", "*.exe"), ("All Files", "*.*")])
         return engine_path
 
-    def create_main_menu(self):
-        # Create the main menu interface
-        self.clear_screen()
-
-        self.general_frame = tk.Frame(self.root, bg="black")
-        self.general_frame.place(relx=0.5, rely=0.5, anchor="center", relwidth=1.0, relheight=1.0)
-
-        # Configure a 3x2 grid layout that takes the entire screen
-        self.general_frame.grid_rowconfigure(0, weight=1)
-        self.general_frame.grid_rowconfigure(1, weight=8)
-        self.general_frame.grid_rowconfigure(2, weight=1)
-        self.general_frame.grid_columnconfigure(0, weight=1)
-        self.general_frame.grid_columnconfigure(1, weight=1)
-
-        # Add title at the top
-        self.title_frame = tk.Frame(self.general_frame, bg="black")
-        self.title_frame.grid(row=0, column=0, columnspan=2, sticky="nsew")
-        self.title_label = tk.Label(self.title_frame, text="Willkommen zu dem BR Bot Retry", font=("Arial", 40), fg="white", bg="black")
-        self.title_label.pack(anchor="center")
-
-        # Top left: Robot with difficulty levels
-        self.top_left_frame = tk.Frame(self.general_frame, bg="black", highlightthickness=0)
-        self.top_left_frame.grid(row=1, column=0, sticky="nsew")
-
-        # Robot emoji
-        self.robot_label = tk.Label(self.top_left_frame, text="🤖", font=("Arial", 200), bg="black", fg="white")
-        self.robot_label.pack(anchor="center")
-
-        # Difficulty level buttons
-        button_width = 20
-        button_height = 2
-        self.easy_button = tk.Button(self.top_left_frame, text="Easy 😊", font=("Arial", 20), bg="black", fg="white", command=lambda: self.start_game("easy"), width=button_width, height=button_height, relief=tk.FLAT)
-        self.easy_button.pack(anchor="center", pady=(10, 5))
-
-        self.medium_button = tk.Button(self.top_left_frame, text="Medium 😎", font=("Arial", 20), bg="black", fg="white", command=lambda: self.start_game("medium"), width=button_width, height=button_height, relief=tk.FLAT)
-        self.medium_button.pack(anchor="center", pady=5)
-
-        self.hard_button = tk.Button(self.top_left_frame, text="Hard 🤓", font=("Arial", 20), bg="black", fg="white", command=lambda: self.start_game("hard"), width=button_width, height=button_height, relief=tk.FLAT)
-        self.hard_button.pack(anchor="center", pady=5)
-
-        # Top right: Play against a friend
-        self.top_right_frame = tk.Frame(self.general_frame, bg="black", highlightthickness=0)
-        self.top_right_frame.grid(row=1, column=1, sticky="nsew")
-
-        self.friend_button = tk.Button(self.top_right_frame, text="👥", font=("Arial", 200), bg="black", fg="white", command=self.start_friend_game, relief=tk.FLAT)
-        self.friend_button.pack(anchor="center")
-
-        # Bottom left: Quit button
-        self.bottom_left_frame = tk.Frame(self.general_frame, bg="black", highlightthickness=0)
-        self.bottom_left_frame.grid(row=2, column=0, sticky="nsew")
-
-        self.quit_button = tk.Button(self.bottom_left_frame, text="Quit ❌", font=("Arial", 80), bg="black", fg="red", command=self.on_closing, relief=tk.FLAT)
-        self.quit_button.pack(anchor="center")
-
-        # Bottom right: BMA button leading to rules and documentation
-        self.bottom_right_frame = tk.Frame(self.general_frame, bg="black", highlightthickness=0)
-        self.bottom_right_frame.grid(row=2, column=1, sticky="nsew")
-
-        self.bma_button = tk.Button(self.bottom_right_frame, text="BMA", font=("Arial", 80), bg="gray", fg="white", command=self.show_bma_options, relief=tk.FLAT)
-        self.bma_button.pack(anchor="center")
-
-    def show_bma_options(self):
-        # Show options for rules and documentation
-        messagebox.showinfo("BMA", "BMA Options: Spieleregeln und Dokumentation.")
+    
+    
 
     def create_game_interface(self):
         # Create the in-game interface with side menu
@@ -151,7 +89,7 @@ class ChessApp:
         self.bot_name_label.grid(row=0, column=1, padx=5, pady=5, sticky='w')
         self.bot_flag_label = tk.Label(self.top_info_frame, text="🇨🇭", font=("Arial", 16), bg="black", fg="white")
         self.bot_flag_label.grid(row=0, column=2, padx=5, pady=5, sticky='w')
-        self.bot_clock_button = tk.Button(self.top_info_frame, text="⏲️", font=("Arial", 16), fg="yellow", bg="black", command=lambda: self.set_timer('bot'))
+        self.bot_clock_button = tk.Button(self.top_info_frame, text="⏰", font=("Arial", 16), fg="yellow", bg="black", command=lambda: self.set_timer('bot'))
         self.bot_clock_button.grid(row=0, column=3, padx=5, pady=5, sticky='w')
 
         # Player information (bottom) - Placed after the player bank to visually appear on top
@@ -170,7 +108,7 @@ class ChessApp:
         self.player_name_label.grid(row=0, column=1, padx=5, pady=5, sticky='w')
         self.player_flag_label = tk.Label(self.bottom_info_frame, text="🇨🇭", font=("Arial", 16), bg="black", fg="white")
         self.player_flag_label.grid(row=0, column=2, padx=5, pady=5, sticky='w')
-        self.player_clock_button = tk.Button(self.bottom_info_frame, text="⏲️", font=("Arial", 16), fg="yellow", bg="black", command=lambda: self.set_timer('player'))
+        self.player_clock_button = tk.Button(self.bottom_info_frame, text="⏰", font=("Arial", 16), fg="yellow", bg="black", command=lambda: self.set_timer('player'))
         self.player_clock_button.grid(row=0, column=3, padx=5, pady=5, sticky='w')
 
         # Create the left menu with buttons for game controls
@@ -186,8 +124,7 @@ class ChessApp:
         self.abandon_button = tk.Button(self.menu_frame, text="Abandonner / Annuler", font=("Arial", 16), command=self.abandon_game, bg="gray", fg="red")
         self.abandon_button.pack(pady=5, fill=tk.X)
 
-        self.home_button = tk.Button(self.menu_frame, text="Retour à l'accueil", font=("Arial", 16), command=self.create_main_menu, bg="gray", fg="white")
-        self.home_button.pack(pady=5, fill=tk.X)
+        
 
         self.analyze_button = tk.Button(self.menu_frame, text="Analyse", font=("Arial", 16), command=self.analyze_game, bg="gray", fg="white")
         self.analyze_button.pack(pady=5, fill=tk.X)
@@ -227,6 +164,11 @@ class ChessApp:
         elif difficulty == "hard":
             self.bot_time_limit = 1.0
             self.bot_depth = 20
+
+        # Initialize timers
+        self.player_time_left = self.player_time if self.player_time else 0
+        self.bot_time_left = self.bot_time if self.bot_time else 0
+
         self.output_text.configure(state='normal')
         self.output_text.insert(tk.END, f"Starting game with {difficulty} difficulty.\n")
         self.output_text.configure(state='disabled')
@@ -236,6 +178,10 @@ class ChessApp:
     def start_friend_game(self):
         # Function to start a game against a friend
         self.create_game_interface()
+        # Initialize timers
+        self.player_time_left = self.player_time if self.player_time else 0
+        self.bot_time_left = self.bot_time if self.bot_time else 0
+        
         self.output_text.configure(state='normal')
         self.output_text.insert(tk.END, "Starting game against a friend.\n")
         self.output_text.configure(state='disabled')
@@ -413,6 +359,10 @@ class ChessApp:
                 timer_button = tk.Button(timer_window, text="No Time", font=("Arial", 14), bg="gray", fg="black", command=lambda t="No Time", p=player_type: self.set_time_for_player(p, t))
                 timer_button.pack(anchor="w", padx=20, pady=2)
 
+        # Confirmation button to close the timer menu
+        confirm_button = tk.Button(timer_window, text="Bestätigen", font=("Arial", 14), bg="green", fg="white", command=timer_window.destroy)
+        confirm_button.pack(pady=10)
+
     def set_time_for_player(self, player_type, time):
         # Set the selected time for the player or bot
         increment = 0
@@ -434,11 +384,25 @@ class ChessApp:
         if player_type == 'player':
             self.player_time = seconds
             self.player_increment = increment
-            self.player_clock_button.config(text=f"⏲️ {time}")
+            self.player_time_left = seconds  # Initialize player countdown
+            self.player_clock_button.config(text=f"⏰ {time}")
         elif player_type == 'bot':
             self.bot_time = seconds
             self.bot_increment = increment
-            self.bot_clock_button.config(text=f"⏲️ {time}")
+            self.bot_time_left = seconds  # Initialize bot countdown
+            self.bot_clock_button.config(text=f"⏰ {time}")
+
+        # Sync both timers
+        if player_type == 'player':
+            self.bot_time = self.player_time
+            self.bot_increment = self.player_increment
+            self.bot_time_left = self.player_time  # Sync bot timer countdown
+            self.bot_clock_button.config(text=f"⏰ {time}")
+        elif player_type == 'bot':
+            self.player_time = self.bot_time
+            self.player_increment = self.bot_increment
+            self.player_time_left = self.bot_time  # Sync player timer countdown
+            self.player_clock_button.config(text=f"⏰ {time}")
 
     def start_timers(self):
         if self.player_time is not None and self.bot_time is not None:
@@ -472,10 +436,10 @@ class ChessApp:
     def update_timer_display(self, player_type):
         if player_type == 'player':
             minutes, seconds = divmod(self.player_time_left, 60)
-            self.player_clock_button.config(text=f"⏲️ {minutes:02d}:{seconds:02d}")
+            self.player_clock_button.config(text=f"⏰ {minutes:02d}:{seconds:02d}")
         elif player_type == 'bot':
             minutes, seconds = divmod(self.bot_time_left, 60)
-            self.bot_clock_button.config(text=f"⏲️ {minutes:02d}:{seconds:02d}")
+            self.bot_clock_button.config(text=f"⏰ {minutes:02d}:{seconds:02d}")
 
 if __name__ == "__main__":
     # Main program: Initialize and start the GUI
