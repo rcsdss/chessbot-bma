@@ -15,6 +15,12 @@ VERSION = "chessbot platteforme v2"
 
 class ChessApp:
     def __init__(self, root):
+        
+        self.pieces_emojis = {
+            'r': '♜', 'n': '♞', 'b': '♝', 'q': '♛', 'k': '♚', 'p': '♟',
+            'R': '♖', 'N': '♘', 'B': '♗', 'Q': '♕', 'K': '♔', 'P': '♙'
+        }
+
         # Initial setup for the ChessApp class
         self.root = root
         self.root.title("Willkommen zu dem BR ChessBot v2")  # Updated title for clarity
@@ -124,10 +130,14 @@ class ChessApp:
         self.play_button = tk.Button(self.mode_frame, text="▶ Spielen", font=("Arial", 20), bg="green", fg="white", command=self.start_game, width=10)
         self.play_button.pack(pady=(0, 5))  # Reduced padding to bring the button closer to the radio buttons
     
-       # Quit Button, directly below the play button
-        self.quit_button = tk.Button(self.mode_frame, text="⛔ Beenden", font=("Arial", 20), bg="red", fg="white", command=self.on_closing, width=10)
-        self.quit_button.pack(pady=(10, 5))  # Slight top padding to create space below the play button
+       # Separate frame for the Quit Button
+        self.quit_frame = tk.Frame(self.general_frame, bg="black")
+        self.quit_frame.grid(row=2, column=0, sticky="nsew", padx=20, pady=(10, 10))  # Place the quit button in its own frame for better control
         
+        # Quit Button, in a separate frame to keep layout consistent
+        self.quit_button = tk.Button(self.quit_frame, text="⛔ Beenden", font=("Arial", 20), bg="red", fg="white", command=self.on_closing, width=10)
+        self.quit_button.pack()  # Place the button in its own frame to avoid affecting the layout of the rest
+                
         # Update the GUI to ensure all elements are displayed correctly
         self.root.update()
 
@@ -432,37 +442,67 @@ class ChessApp:
         # Handle click event for each square
         if not self.game_started:
             return  # Prevent moves before pressing play button
-        selected_square = chess.square(col, 7 - row)
+        
+        selected_square = chess.square(col, 7 - row)  # Convertir la case sélectionnée en notation interne
         if self.selected_piece is not None:
+            # Création du mouvement à partir de la case sélectionnée et de la destination
             move = chess.Move(self.selected_piece, selected_square)
+    
+            # Vérifier si le mouvement est légal
             if move in self.board.legal_moves:
-                self.undo_stack.append(self.board.copy())  # Add current board state to stack
+                self.undo_stack.append(self.board.copy())  # Sauvegarder l'état actuel du plateau pour l'annulation
+                
+                # Gérer la capture de pièce si applicable
                 if self.board.is_capture(move):
                     captured_piece = self.board.piece_at(move.to_square)
                     if self.board.turn == chess.WHITE:
                         self.captured_pieces_bot.append(captured_piece.symbol())
                     else:
                         self.captured_pieces_player.append(captured_piece.symbol())
+    
+                # Appliquer le mouvement sur le plateau
                 self.board.push(move)
-                self.selected_piece = None
-                self.update_board()
-                self.check_end_game()  # Check if game ended after move
-                if not self.first_move_played:  # Start timers after the first move is played
+                self.display_move_in_output(move)  # Afficher le mouvement en notation SAN
+                self.update_board()  # Mettre à jour la représentation graphique de l'échiquier
+                self.check_end_game()  # Vérifier si le jeu est terminé après ce coup
+    
+                # Démarrer les timers si c'est la première action
+                if not self.first_move_played:
                     self.first_move_played = True
                     if self.timed_game:
                         self.root.after(1000, self.start_timers)
+    
+                # Changer de joueur (changer de timer) si la partie est chronométrée
                 if self.timed_game:
                     self.switch_timer()
+    
+                # Si on joue contre le bot, faire jouer le bot
                 if not self.board.turn and self.game_mode.get() != "freund":
                     self.bot_move()
             else:
-                self.selected_piece = None  # Deselect if move is not legal
-                self.update_board()  # Remove any highlighted moves
+                # Mouvement illégal : désélectionner la pièce et mettre à jour l'affichage
+                self.selected_piece = None
+                self.update_board()
         else:
+            # Si aucune pièce n'est sélectionnée, vérifier si la case contient une pièce du joueur actuel
             piece = self.board.piece_at(selected_square)
             if piece and piece.color == self.board.turn:
                 self.selected_piece = selected_square
-                self.highlight_moves(selected_square)
+                self.highlight_moves(selected_square)  # Surbrillance des mouvements possibles pour la pièce sélectionnée
+    
+
+                
+    def display_move_in_output(self, move):
+        # Convertir le mouvement en notation UCI
+        move_uci = move.uci()
+    
+        # Ajouter le mouvement à la zone de texte
+        self.output_text.configure(state='normal')  # Déverrouiller la zone de texte
+        self.output_text.insert(tk.END, f"\n{move_uci}")  # Ajouter le mouvement en notation UCI
+        self.output_text.configure(state='disabled')  # Verrouiller la zone de texte
+        self.output_text.see(tk.END)  # Faire défiler vers le bas pour voir le dernier mouvement ajouté
+
+
 
     def switch_timer(self):
         # Switch timers between player and bot
@@ -489,9 +529,11 @@ class ChessApp:
             self.captured_pieces_player.append(captured_piece.symbol())
         self.board.push(result.move)
         self.update_board()
+        self.display_move_in_output(result.move)  # Display bot's move
         self.check_end_game()
         if self.timed_game:
             self.switch_timer()
+
 
     def disable_board(self):
         # Disable all squares of the chessboard
