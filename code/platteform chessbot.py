@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Thu Oct 24 10:31:42 2024
+Created on Fri Oct 25 15:36:49 2024
 
 @author: Robin Corbonnois
 """
@@ -76,12 +76,6 @@ class ChessApp:
         # Create the user interface for the game
         self.create_game_interface()
 
-
-    def browse_for_engine(self):
-        # Function to prompt user to browse for the Stockfish engine
-        engine_path = filedialog.askopenfilename(title="Stockfish-Engine auswählen", filetypes=[("Ausführbare Dateien", "*.exe"), ("Alle Dateien", "*.*")])
-        return engine_path
-
     def create_game_interface(self):
         # Create the in-game interface with all controls
         self.clear_screen()
@@ -96,124 +90,99 @@ class ChessApp:
         self.general_frame.grid_columnconfigure(1, weight=8)
         self.general_frame.grid_columnconfigure(2, weight=1)
     
-        # Game mode selection frame (Radio buttons)
+        # Game mode selection frame (Radio buttons and Play button together)
         self.mode_frame = tk.Frame(self.general_frame, bg="black")
-        self.mode_frame.grid(row=1, column=0, sticky="nsew", padx=20, pady=(10, 200))  # Adjust padding to move the menu up and closer
-        self.game_mode = tk.StringVar(value="einfach")  # Set default mode to "einfach"
+        self.mode_frame.grid(row=1, column=0, sticky="", padx=20, pady=(10, 10))
     
         # Description label centered at the top of the mode frame
         self.description_label = tk.Label(self.mode_frame, text="Chessbot Br", font=("Comic Sans MS", 24, "bold"), bg="black", fg="white")
-        self.description_label.pack(side="top", anchor="center", expand=True, padx=20, pady=(250, 5))  # Reduced padding between label and radio buttons
+        self.description_label.pack(side="top", anchor="center", expand=True, padx=20, pady=(5, 5))
     
-        # Container frame for the radio buttons to center them vertically relative to the description label
-        self.radio_buttons_frame = tk.Frame(self.mode_frame, bg="black")
-        self.radio_buttons_frame.pack(side="top", anchor="center", expand=False, pady=(0, 5))  # Reduced top padding to bring radio buttons closer to the label
+        # Container frame for the radio buttons and play button with green border
+        self.radio_and_play_container = tk.Frame(self.mode_frame, bg="white", bd=4, relief="solid")
+        self.radio_and_play_container.pack(side="top", anchor="center", pady=(0, 5))
     
-        # Creating Radio buttons for different game modes
-        tk.Radiobutton(self.radio_buttons_frame, text="👼 Gegen Bot spielen (Einfach)", variable=self.game_mode, value="einfach",
+        # Inner frame inside the green border for better alignment
+        self.radio_and_play_frame = tk.Frame(self.radio_and_play_container, bg="black")
+        self.radio_and_play_frame.pack(padx=5, pady=5)
+    
+        # Play Button, positioned in the leftmost column of the frame
+        self.play_button = tk.Button(self.radio_and_play_frame, text="▶", font=("Arial", 30), bg="green", fg="white", command=self.start_game, width=5)
+        self.play_button.grid(row=0, column=0, rowspan=4, padx=(0, 20))
+    
+        # Creating Radio buttons for different game modes, positioned to the right of the Play button
+        tk.Radiobutton(self.radio_and_play_frame, text="👼 Einfach", variable=self.game_mode, value="einfach",
                        font=("Arial", 18, "bold"), bg="black", fg="gray",
-                       indicatoron=True, command=self.update_selected_mode_display).pack(anchor="w", padx=20, pady=5)
+                       indicatoron=True, command=self.update_selected_mode_display).grid(row=0, column=1, sticky="w", padx=10, pady=(0, 0))
     
-        tk.Radiobutton(self.radio_buttons_frame, text="👴 Gegen Bot spielen (Mittel)", variable=self.game_mode, value="mittel",
+        tk.Radiobutton(self.radio_and_play_frame, text="👴 Mittel", variable=self.game_mode, value="mittel",
                        font=("Arial", 18, "bold"), bg="black", fg="gray",
-                       indicatoron=True, command=self.update_selected_mode_display).pack(anchor="w", padx=20, pady=5)
+                       indicatoron=True, command=self.update_selected_mode_display).grid(row=1, column=1, sticky="w", padx=10, pady=(0, 0))
     
-        tk.Radiobutton(self.radio_buttons_frame, text="🏋 Gegen Bot spielen (Schwer)", variable=self.game_mode, value="schwer",
+        tk.Radiobutton(self.radio_and_play_frame, text="🏋 Schwer", variable=self.game_mode, value="schwer",
                        font=("Arial", 18, "bold"), bg="black", fg="gray",
-                       indicatoron=True, command=self.update_selected_mode_display).pack(anchor="w", padx=20, pady=5)
+                       indicatoron=True, command=self.update_selected_mode_display).grid(row=2, column=1, sticky="w", padx=10, pady=(0, 0))
     
-        tk.Radiobutton(self.radio_buttons_frame, text="👥 Gegen einen Freund spielen", variable=self.game_mode, value="freund",
+        tk.Radiobutton(self.radio_and_play_frame, text="👥 Freund", variable=self.game_mode, value="freund",
                        font=("Arial", 18, "bold"), bg="black", fg="gray",
-                       indicatoron=True, command=self.update_selected_mode_display).pack(anchor="w", padx=20, pady=5)
+                       indicatoron=True, command=self.update_selected_mode_display).grid(row=3, column=1, sticky="w", padx=10, pady=(0, 0))
     
-        # Play Button, centered below the radio buttons, with reduced spacing
-        self.play_button = tk.Button(self.mode_frame, text="▶ Spielen", font=("Arial", 20), bg="green", fg="white", command=self.start_game, width=10)
-        self.play_button.pack(pady=(0, 5))  # Reduced padding to bring the button closer to the radio buttons
+        # Use 'place' to precisely position the Quit Button ("Beenden")
+        self.quit_button = tk.Button(self.root, text="❌ Beenden", font=("Arial", 20), bg="red", fg="white", command=self.on_closing, width=10)
+        self.quit_button.place(x=375, y=850)
     
-       # Separate frame for the Quit Button
-        self.quit_frame = tk.Frame(self.general_frame, bg="black")
-        self.quit_frame.grid(row=2, column=0, sticky="nsew", padx=20, pady=(10, 10))  # Place the quit button in its own frame for better control
-        
-        # Quit Button, in a separate frame to keep layout consistent
-        self.quit_button = tk.Button(self.quit_frame, text="⛔ Beenden", font=("Arial", 20), bg="red", fg="white", command=self.on_closing, width=10)
-        self.quit_button.pack()  # Place the button in its own frame to avoid affecting the layout of the rest
-                
-        # Update the GUI to ensure all elements are displayed correctly
-        self.root.update()
-
-   
-        # Timed game toggle button (removed and replaced with clock label activation)
-        self.timed_button_active = False
-
-
-        # Top information frame for bot details (swapped position)
+        # Frame for the chessboard
+        self.board_frame = tk.Frame(self.general_frame, bg="black")
+        self.board_frame.grid(row=1, column=1, padx=5, pady=5, sticky="nsew")
+    
+        # Create chessboard
+        self.square_size = 100
+        self.squares = {}  # Make sure to initialize the squares dictionary
+        for row in range(8):
+            for col in range(8):
+                color = "#D18B47" if (row + col) % 2 == 0 else "#FFCE9E"
+                square = tk.Canvas(self.board_frame, width=self.square_size, height=self.square_size, highlightthickness=0, bg=color)
+                square.grid(row=row, column=col)
+                square.bind("<Button-1>", lambda event, r=row, c=col: self.handle_square_click(r, c))
+                self.squares[(row, col)] = square
+    
+        # Top information frame for bot details
         self.top_info_frame = tk.Frame(self.general_frame, bg="black")
         self.top_info_frame.grid(row=0, column=1, sticky="nsew")
-
-        # Bot piece bank (placed behind bot info)
-        self.bot_bank_frame = tk.Frame(self.top_info_frame, bg="black")
-        self.bot_bank_frame.place(x=110, y=50)  # Adjust x, y values for exact positioning
-        self.bot_bank_canvas = tk.Canvas(self.bot_bank_frame, width=400, height=50, bg="black", highlightthickness=0)
-        self.bot_bank_canvas.pack()
-
-        # Bot information (top)
+    
         self.bot_photo_label = tk.Label(self.top_info_frame, text="🤖", font=("Arial", 50), bg="black", fg="white")
         self.bot_photo_label.grid(row=0, column=0, padx=10, pady=5, sticky='w')
         self.bot_name_label = tk.Label(self.top_info_frame, text=f"{self.bot_name} ({self.bot_elo})", font=("Arial", 16), fg="white", bg="black")
         self.bot_name_label.grid(row=0, column=1, padx=5, pady=5, sticky='w')
         self.bot_flag_label = tk.Label(self.top_info_frame, text="🇨🇭", font=("Arial", 16), bg="black", fg="white")
         self.bot_flag_label.grid(row=0, column=2, padx=5, pady=5, sticky='w')
-        self.bot_clock_button = tk.Label(self.top_info_frame, text="⏰", font=("Arial", 16), fg="black", bg="red")
-        self.bot_clock_button.grid(row=0, column=3, padx=5, pady=5, sticky='w')
-        self.bot_clock_button.bind("<Button-1>", lambda event: self.toggle_clock() if not self.timed_button_active else None)
-
-        # Player information (bottom)
+    
+        # Player information frame
         self.bottom_info_frame = tk.Frame(self.general_frame, bg="black")
         self.bottom_info_frame.grid(row=2, column=1, sticky="nsew")
-
-        # Player piece bank (placed behind player info)
-        self.player_bank_frame = tk.Frame(self.bottom_info_frame, bg="black")
-        self.player_bank_frame.place(x=110, y=50)
-        self.player_bank_canvas = tk.Canvas(self.player_bank_frame, width=400, height=50, bg="black", highlightthickness=0)
-        self.player_bank_canvas.pack()
-
+    
         self.player_photo_label = tk.Label(self.bottom_info_frame, text="👤", font=("Arial", 50), bg="black", fg="white")
         self.player_photo_label.grid(row=0, column=0, padx=10, pady=5, sticky='w')
         self.player_name_label = tk.Label(self.bottom_info_frame, text=f"{self.player_name} ({self.player_elo})", font=("Arial", 16), fg="white", bg="black")
         self.player_name_label.grid(row=0, column=1, padx=5, pady=5, sticky='w')
         self.player_flag_label = tk.Label(self.bottom_info_frame, text="🇨🇭", font=("Arial", 16), bg="black", fg="white")
         self.player_flag_label.grid(row=0, column=2, padx=5, pady=5, sticky='w')
-        self.player_clock_button = tk.Label(self.bottom_info_frame, text="⏰", font=("Arial", 16), fg="black", bg="red")
-        self.player_clock_button.grid(row=0, column=3, padx=5, pady=5, sticky='w')
-        self.player_clock_button.bind("<Button-1>", lambda event: self.toggle_clock())
-
-        # Frame for the chessboard
-        self.board_frame = tk.Frame(self.general_frame, bg="black")
-        self.board_frame.grid(row=1, column=1, padx=5, pady=5, sticky="nsew")
-
-        # Create chessboard
-        self.square_size = 100  # Adjust size accordingly
-        for row in range(8):
-            for col in range(8):
-                square = tk.Canvas(self.board_frame, width=self.square_size, height=self.square_size, highlightthickness=0, bg="gray")  # Initially disabled and grayed out
-                square.grid(row=row, column=col)
-                square.bind("<Button-1>", lambda event, r=row, c=col: self.handle_square_click(r, c))
-                self.squares[(row, col)] = square
-
+    
         # Frame for move history or bot output
         self.output_frame = tk.Frame(self.general_frame, bg="black")
         self.output_frame.grid(row=1, column=2, sticky="nsew", padx=5, pady=5)
-        self.output_text = scrolledtext.ScrolledText(self.output_frame, width=30, height=40, font=("Arial", 12), bg="black", fg="white", wrap=tk.WORD)
+        self.output_text = tk.scrolledtext.ScrolledText(self.output_frame, width=30, height=40, font=("Arial", 12), bg="black", fg="white", wrap=tk.WORD)
         self.output_text.pack(fill=tk.BOTH, expand=True)
         self.output_text.insert(tk.END, "Willkommen beim Schachbot! Wählen Sie zuerst einen Spielmodus und klicken Sie auf Spielen, um zu beginnen.")
-        self.output_text.configure(state='disabled')  # Disable writing
-
+        self.output_text.configure(state='disabled')
+    
         # Add the "Aufgeben" button to allow changing the mode after starting the game
         self.abandon_button = tk.Button(self.output_frame, text="Aufgeben / Modus ändern", font=("Arial", 16), command=self.reset_game, bg="blue", fg="white")
         self.abandon_button.pack(pady=5, fill=tk.X)
+    
+        # Update the GUI to ensure all elements are displayed correctly
+        self.root.update()
 
-        self.disable_board()  # Disable board initially
-        self.update_board()
     
     def update_selected_mode_display(self):
         # Display the selected mode in the output text area and print to console (Spyder)
@@ -442,56 +411,114 @@ class ChessApp:
         # Handle click event for each square
         if not self.game_started:
             return  # Prevent moves before pressing play button
-        
-        selected_square = chess.square(col, 7 - row)  # Convertir la case sélectionnée en notation interne
+    
+        selected_square = chess.square(col, 7 - row)  # Convert selected square to internal notation
         if self.selected_piece is not None:
-            # Création du mouvement à partir de la case sélectionnée et de la destination
+            # Create the move from selected piece and destination
             move = chess.Move(self.selected_piece, selected_square)
     
-            # Vérifier si le mouvement est légal
+            piece = self.board.piece_at(self.selected_piece)
+    
+            # Check if it's a legal move
             if move in self.board.legal_moves:
-                self.undo_stack.append(self.board.copy())  # Sauvegarder l'état actuel du plateau pour l'annulation
-                
-                # Gérer la capture de pièce si applicable
-                if self.board.is_capture(move):
-                    captured_piece = self.board.piece_at(move.to_square)
-                    if self.board.turn == chess.WHITE:
-                        self.captured_pieces_bot.append(captured_piece.symbol())
-                    else:
-                        self.captured_pieces_player.append(captured_piece.symbol())
+                # Check if it's a pawn promotion
+                if piece.piece_type == chess.PAWN:
+                    if (piece.color == chess.WHITE and chess.square_rank(self.selected_piece) == 6) or \
+                       (piece.color == chess.BLACK and chess.square_rank(self.selected_piece) == 1):
+                        # The pawn is on the penultimate rank, and its next move can be a promotion
+                        if chess.square_rank(selected_square) == 7 or chess.square_rank(selected_square) == 0:
+                            # Call the function to prompt the user for pawn promotion
+                            self.prompt_pawn_promotion(move)
+                            self.selected_piece = None
+                            return
     
-                # Appliquer le mouvement sur le plateau
-                self.board.push(move)
-                self.display_move_in_output(move)  # Afficher le mouvement en notation SAN
-                self.update_board()  # Mettre à jour la représentation graphique de l'échiquier
-                self.check_end_game()  # Vérifier si le jeu est terminé après ce coup
+                # Check if the move is en passant
+                if piece.piece_type == chess.PAWN and self.board.is_en_passant(move):
+                    captured_square = move.to_square + (-8 if self.board.turn == chess.WHITE else 8)
+                    captured_piece = self.board.piece_at(captured_square)
+                    if captured_piece:
+                        if self.board.turn == chess.WHITE:
+                            self.captured_pieces_bot.append(captured_piece.symbol())
+                        else:
+                            self.captured_pieces_player.append(captured_piece.symbol())
     
-                # Démarrer les timers si c'est la première action
-                if not self.first_move_played:
-                    self.first_move_played = True
-                    if self.timed_game:
-                        self.root.after(1000, self.start_timers)
+                # Otherwise, execute the move normally
+                self.execute_move(move)
     
-                # Changer de joueur (changer de timer) si la partie est chronométrée
-                if self.timed_game:
-                    self.switch_timer()
-    
-                # Si on joue contre le bot, faire jouer le bot
-                if not self.board.turn and self.game_mode.get() != "freund":
-                    self.bot_move()
+                # Reset selected piece after move
+                self.selected_piece = None
             else:
-                # Mouvement illégal : désélectionner la pièce et mettre à jour l'affichage
+                # Illegal move: deselect the piece and update display
                 self.selected_piece = None
                 self.update_board()
         else:
-            # Si aucune pièce n'est sélectionnée, vérifier si la case contient une pièce du joueur actuel
+            # If no piece is selected, check if the square contains a piece for the current player
             piece = self.board.piece_at(selected_square)
             if piece and piece.color == self.board.turn:
                 self.selected_piece = selected_square
-                self.highlight_moves(selected_square)  # Surbrillance des mouvements possibles pour la pièce sélectionnée
-    
+                self.highlight_moves(selected_square)  # Highlight possible moves for the selected piece
+            def prompt_pawn_promotion(self, move):
+                # Create a popup window for the promotion
+                promotion_window = tk.Toplevel(self.root)
+                promotion_window.title("Pawn Promotion")
+                promotion_window.configure(bg="black")
+                promotion_window.geometry("300x200")
+            
+                label = tk.Label(promotion_window, text="Choose a piece to promote to:", font=("Arial", 14), fg="white", bg="black")
+                label.pack(pady=10)
+            
+                # Function to promote based on selection
+                def promote_to(piece_type):
+                    promotion_move = chess.Move(move.from_square, move.to_square, promotion=piece_type)
+                    if promotion_move in self.board.legal_moves:
+                        self.execute_move(promotion_move)  # Correctly execute promotion
+                    else:
+                        messagebox.showerror("Error", "Invalid promotion move.")
+                    promotion_window.destroy()
+            
+                # Add buttons for each promotion piece
+                button_font = ("Arial", 12)
+                tk.Button(promotion_window, text="♛ Queen", font=button_font, command=lambda: promote_to(chess.QUEEN)).pack(pady=5)
+                tk.Button(promotion_window, text="♜ Rook", font=button_font, command=lambda: promote_to(chess.ROOK)).pack(pady=5)
+                tk.Button(promotion_window, text="♝ Bishop", font=button_font, command=lambda: promote_to(chess.BISHOP)).pack(pady=5)
+                tk.Button(promotion_window, text="♞ Knight", font=button_font, command=lambda: promote_to(chess.KNIGHT)).pack(pady=5)
 
-                
+          
+
+    def execute_move(self, move):
+        # Save the current board state for undo
+        self.undo_stack.append(self.board.copy())
+    
+        # Handle piece capture if applicable
+        if self.board.is_capture(move):
+            captured_piece = self.board.piece_at(move.to_square)
+            if captured_piece is not None:
+                if self.board.turn == chess.WHITE:
+                    self.captured_pieces_bot.append(captured_piece.symbol())
+                else:
+                    self.captured_pieces_player.append(captured_piece.symbol())
+    
+        # Apply the move to the board
+        self.board.push(move)
+        self.display_move_in_output(move)  # Display the move in SAN notation
+        self.update_board()  # Update the graphical representation of the board
+        self.check_end_game()  # Check if the game is over after this move
+    
+        # Start timers if it's the first action
+        if not self.first_move_played:
+            self.first_move_played = True
+            if self.timed_game:
+                self.root.after(1000, self.start_timers)
+    
+        # Switch timers if the game is timed
+        if self.timed_game:
+            self.switch_timer()
+    
+        # Make the bot move if playing against the bot
+        if not self.board.turn and self.game_mode.get() != "freund":
+            self.bot_move()
+
+           
     def display_move_in_output(self, move):
         # Convertir le mouvement en notation UCI
         move_uci = move.uci()

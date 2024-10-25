@@ -18,7 +18,7 @@ class ChessApp:
         self.root = root
         self.root.title("Chess Game")
         self.board = chess.Board()
-        self.engine_path = r"C:\Users\Robin Corbonnois\OneDrive - TBZ\Desktop\python\chessbot_project_2\github\stockfish\stockfish-windows-x86-64-avx2.exe"
+        self.engine_path = r"C:\Users\Robin Corbonnois\OneDrive - TBZ\Desktop\python\chessbot_project_2\github\code\stockfish\stockfish-windows-x86-64-avx2.exe"
         self.engine = chess.engine.SimpleEngine.popen_uci(self.engine_path)
         self.squares = {}
         self.selected_piece = None
