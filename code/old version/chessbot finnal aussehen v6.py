@@ -23,7 +23,7 @@ class ChessApp:
         self.root.state('zoomed')  # Start in full screen
         self.root.configure(bg="black")
         self.board = chess.Board()
-        self.engine_path = r"C:\Users\Robin Corbonnois\OneDrive - TBZ\Desktop\python\chessbot_project_2\github\stockfish\stockfish-windows-x86-64-avx2.exe"
+        self.engine_path = r"C:\Users\Robin Corbonnois\OneDrive - TBZ\Desktop\python\chessbot_project_2\github\code\stockfish\stockfish-windows-x86-64-avx2.exe"
         if not self.engine_path:
             messagebox.showerror("Fehler", "Kein Pfad zur Engine ausgewählt. Das Programm wird beendet.")
             root.quit()
@@ -45,123 +45,7 @@ class ChessApp:
         self.board.reset()  # Directly start with the game interface
         
 
-    def create_game_interface(self):
-        # Create game interface layout
-        self.clear_screen()
-
-        # General frame that holds everything, helps centralize components
-        self.general_frame = tk.Frame(self.root, bg="black")
-        self.general_frame.place(relx=0.5, rely=0.5, anchor="center")
-
-        # Configure grid layout for the general frame
-        self.general_frame.grid_rowconfigure(0, weight=1)
-        self.general_frame.grid_rowconfigure(1, weight=8)
-        self.general_frame.grid_rowconfigure(2, weight=1)
-        self.general_frame.grid_columnconfigure(0, weight=1)  # Reduce weight for less spacing on the left
-        self.general_frame.grid_columnconfigure(1, weight=8)  # Increase weight for the chessboard
-        self.general_frame.grid_columnconfigure(2, weight=1)  # Reduce weight for less spacing on the right
-
-        # Create left menu frame and align it vertically to the chessboard
-        self.menu_frame = tk.Frame(self.general_frame, bg="black")
-        self.menu_frame.grid(row=1, column=0, sticky="ns", padx=(5, 5), pady=(5, 5))  # Reduced padding for compact layout
-
-        welcome_label = tk.Label(self.menu_frame, text="Br Bot GUI", font=("Arial", 20), bg="black", fg="white")
-        welcome_label.pack(pady=5)
-
-        self.play_bot_button = tk.Button(self.menu_frame, text="Gegen den Bot spielen", font=("Arial", 16), command=lambda: self.display_difficulty_options(), bg="gray", fg="white")
-        self.play_bot_button.pack(pady=5, fill=tk.X)
-
-        self.play_friend_button = tk.Button(self.menu_frame, text="Gegen einen Freund spielen", font=("Arial", 16), command=self.start_friend_game, bg="gray", fg="white")
-        self.play_friend_button.pack(pady=5, fill=tk.X)
-
-        self.analyze_button = tk.Button(self.menu_frame, text="Spiel analysieren", font=("Arial", 16), command=self.analyze_game, bg="gray", fg="white")
-        self.analyze_button.pack(pady=5, fill=tk.X)
-
-        self.bigger_window_button = tk.Button(self.menu_frame, text="Chessboard vergrößern", font=("Arial", 14), command=self.toggle_window_size, bg="gray", fg="white")
-        self.bigger_window_button.pack(pady=5, fill=tk.X)
-
-        self.rules_button = tk.Button(self.menu_frame, text="Schachregeln", font=("Arial", 14), command=self.show_rules, bg="gray", fg="white")
-        self.rules_button.pack(pady=5, fill=tk.X)
-
-        self.documentation_button = tk.Button(self.menu_frame, text="Dokumentation", font=("Arial", 14), command=self.show_documentation, bg="gray", fg="white")
-        self.documentation_button.pack(pady=5, fill=tk.X)
-
-        self.exit_button = tk.Button(self.menu_frame, text="Beenden (ESC)", font=("Arial", 14), command=self.root.quit, bg="gray", fg="white")
-        self.exit_button.pack(pady=5, fill=tk.X)
-
-        # Frame for the chessboard, centered in the middle
-        self.board_frame = tk.Frame(self.general_frame, bg="black")
-        self.board_frame.grid(row=1, column=1, padx=5, pady=5, sticky="nsew")  # Reduced padding for compact layout
-
-        # Calculate square size dynamically based on the available space
-        self.square_size = 100  # Adjusted size for better visibility and layout, reduced from 100 to make space
-
-        for row in range(8):
-            for col in range(8):
-                square = tk.Canvas(self.board_frame, width=self.square_size, height=self.square_size, highlightthickness=0)
-                square.grid(row=row, column=col)
-                square.bind("<Button-1>", lambda event, r=row, c=col: self.handle_square_click(r, c))
-                self.squares[(row, col)] = square
-
-        # Draw the initial board with pieces
-        
-
-        # Add labels for columns and rows
-        for col in range(8):
-            tk.Label(self.board_frame, text=chr(65 + col), font=("Arial", 10), bg="black", fg="white").grid(row=8, column=col)  # Column labels (A-H)
-        for row in range(8):
-            tk.Label(self.board_frame, text=str(8 - row), font=("Arial", 10), bg="black", fg="white").grid(row=row, column=8)  # Row labels (1-8)
-
-        # Frame for player's information and clock - aligned below the board, left-aligned
-        self.bottom_info_frame = tk.Frame(self.general_frame, bg="black")
-        self.bottom_info_frame.grid(row=2, column=1, sticky='sw', padx=(0, 0), pady=(0, 0))  # Align to the left side of the board, slightly adjusted
-
-        # Adding player profile picture and flag
-        self.player_image = self.load_profile_image(r"C:\Users\Robin Corbonnois\OneDrive - TBZ\Desktop\python\chessbot_project_2\github\images\Profilbild\default.jpg")
-        self.player_photo_label = tk.Label(self.bottom_info_frame, image=self.player_image, bg="black")
-        self.player_photo_label.grid(row=0, column=0, rowspan=2, padx=0, pady=(0, 0), sticky='w')  # Adjusted padding for closer alignment
-        self.player_name_label = tk.Label(self.bottom_info_frame, text=self.player_name, font=("Arial", 16), fg="green", bg="black")
-        self.player_name_label.grid(row=0, column=1, padx=5, pady=(0, 0), sticky='w')
-        
-        self.white_clock = tk.Label(self.bottom_info_frame, text="10:00", font=("Arial", 14), fg="white", bg="#4CAF50", padx=10)
-        self.white_clock.grid(row=0, column=2, padx=5, pady=(0, 0), sticky='w')
-
-        # Add a player piece bank frame under the player's name
-        self.player_bank_frame = tk.Frame(self.bottom_info_frame, bg="black")
-        self.player_bank_frame.grid(row=1, column=1, columnspan=2, padx=5, sticky='w')
-        
-        self.player_bank_canvas = tk.Canvas(self.player_bank_frame, width=200, height=50, bg="black", highlightthickness=0)  # Reduced width for better fit
-        self.player_bank_canvas.pack()
-
-        # Frame for bot's information and clock - aligned above the board, right-aligned
-        self.top_info_frame = tk.Frame(self.general_frame, bg="black")
-        self.top_info_frame.grid(row=0, column=1, sticky='ne', padx=(0, 0), pady=(0, 0))  # Align to the right side of the board, slightly adjusted
-
-        # Adding bot profile picture and flag
-        self.bot_image = self.load_profile_image(r"C:\Users\Robin Corbonnois\OneDrive - TBZ\Desktop\python\chessbot_project_2\github\images\Profilbild\default.jpg")
-        self.bot_photo_label = tk.Label(self.top_info_frame, image=self.bot_image, bg="black")
-        self.bot_photo_label.grid(row=0, column=0, rowspan=2, padx=0, pady=(0, 0), sticky='e')  # Adjusted padding for closer alignment
-        self.bot_name_label = tk.Label(self.top_info_frame, text=self.bot_name, font=("Arial", 16), fg="green", bg="black")
-        self.bot_name_label.grid(row=0, column=1, padx=5, pady=(0, 0), sticky='e')
-        
-        self.black_clock = tk.Label(self.top_info_frame, text="10:00", font=("Arial", 14), fg="black", bg="#FFC107", padx=10)
-        self.black_clock.grid(row=0, column=2, padx=5, pady=(0, 0), sticky='e')
-
-        # Add a bot piece bank frame under the bot's name
-        self.bot_bank_frame = tk.Frame(self.top_info_frame, bg="black")
-        self.bot_bank_frame.grid(row=1, column=1, columnspan=2, padx=5, sticky='e')
-        
-        self.bot_bank_canvas = tk.Canvas(self.bot_bank_frame, width=200, height=50, bg="black", highlightthickness=0)  # Reduced width for better fit
-        self.bot_bank_canvas.pack()
-        
-        # Text box for move history or bot output - right of the board
-        self.output_frame = tk.Frame(self.general_frame, bg="black")
-        self.output_frame.grid(row=1, column=2, sticky="nsew", padx=5, pady=5)  # Reduced padding for compact layout
-        self.output_text = scrolledtext.ScrolledText(self.output_frame, width=30, height=40, font=("Arial", 12), bg="black", fg="white", wrap=tk.WORD)
-        self.output_text.pack(fill=tk.BOTH, expand=True)
-        self.output_text.insert(tk.END, "Willkommen beim Schachbot! Weiß ist am Zug\n")
-        self.update_board()
-        self.update_board()
+    
 
     def load_profile_image(self, path):
         # Load and resize profile image for display
