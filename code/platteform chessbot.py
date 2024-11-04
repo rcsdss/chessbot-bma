@@ -377,23 +377,38 @@ class ChessApp:
             'r': '♜', 'n': '♞', 'b': '♝', 'q': '♛', 'k': '♚', 'p': '♟',
             'R': '♖', 'N': '♘', 'B': '♗', 'Q': '♕', 'K': '♔', 'P': '♙'
         }
+        
         for row in range(8):
             for col in range(8):
                 square = self.squares[(row, col)]
-                square.delete("all")
+                # Löschen Sie alle Figuren und Markierungen, aber behalten Sie die Notationen bei
+                square.delete("piece")  # Verwenden Sie eine Tag-basierte Löschung, damit die Notationen erhalten bleiben
+                
+                # Colorieren Sie die Schachfelder neu
                 color = "#D18B47" if (row + col) % 2 == 0 else "#FFCE9E"
-                square.create_rectangle(0, 0, self.square_size, self.square_size, outline="black", fill=color)
+                square.create_rectangle(0, 0, self.square_size, self.square_size, outline="black", fill=color, tags="square")
+    
+                # Aktualisieren Sie das Brett mit Figuren
                 piece = self.board.piece_at(chess.square(col, 7 - row))
                 if piece:
                     symbol = self.pieces[piece.symbol()]
-                    square.create_text(self.square_size // 2, self.square_size // 2, text=symbol, font=("Arial", int(self.square_size * 0.5)), anchor="center")
+                    square.create_text(self.square_size // 2, self.square_size // 2, text=symbol, font=("Arial", int(self.square_size * 0.5)), anchor="center", tags="piece")
+                
+                # Zeichnen Sie die Notationen neu, falls es sich um die entsprechende Reihe oder Spalte handelt
+                if row == 7:  # Unten stehende Spaltenbezeichnungen (Buchstaben)
+                    square.create_text(self.square_size - 10, self.square_size - 10, text=chr(97 + col), font=("Arial", 12), fill="white", tags="notation")
+                if col == 0:  # Links stehende Zeilenbezeichnungen (Zahlen)
+                    square.create_text(10, 10, text=str(8 - row), font=("Arial", 12), fill="white", tags="notation")
+    
         if self.board.is_check():
+            # Markieren Sie das bedrohte Königsfeld, wenn Schach vorliegt
             king_square = self.board.king(self.board.turn)
             row, col = divmod(king_square, 8)
-            self.squares[(7 - row, col)].create_rectangle(0, 0, self.square_size, self.square_size, outline="red", width=5)
-
-        # Update piece banks
+            self.squares[(7 - row, col)].create_rectangle(0, 0, self.square_size, self.square_size, outline="red", width=5, tags="check")
+    
+        # Update the piece banks (captured pieces)
         self.update_piece_banks()
+
 
     def update_piece_banks(self):
         # Update piece banks for both player and bot
@@ -536,23 +551,36 @@ class ChessApp:
         if not self.game_started:
             return  # Prevent moves before pressing play button
     
-        selected_square = chess.square(col, 7 - row)  # Convert the clicked square to internal notation
+        selected_square = chess.square(col, 7 - row)
+        print(f"[DEBUG] Clicked on square: row={row}, col={col}, selected_square={selected_square}")  # Debugging
+    
         if self.selected_piece is not None:
+            # Player is moving a piece already selected
             move = chess.Move(self.selected_piece, selected_square)
+            piece = self.board.piece_at(self.selected_piece)
+    
+            # Check if the move is a promotion move
+            if piece and piece.piece_type == chess.PAWN:
+                print(f"[DEBUG] Selected piece is a pawn at square {self.selected_piece}")
+                if chess.square_rank(selected_square) == 0 or chess.square_rank(selected_square) == 7:
+                    # Pawn is reaching promotion rank - set a default promotion to queen for legality check
+                    move = chess.Move(self.selected_piece, selected_square, promotion=chess.QUEEN)
+                    print(f"[DEBUG] Pawn promotion detected. Promotion move: {move}")
     
             # Check if the move is legal
             if move in self.board.legal_moves:
                 self.undo_stack.append(self.board.copy())  # Save the current state for undo
     
-                # Handle pawn promotion
-                piece = self.board.piece_at(self.selected_piece)
+                # Handle pawn promotion window if needed
                 if piece and piece.piece_type == chess.PAWN and (
                         chess.square_rank(selected_square) == 0 or chess.square_rank(selected_square) == 7):
-                    # Open promotion window
+                    # Open the promotion window to choose a piece
+                    print(f"[DEBUG] Legal pawn promotion move to {selected_square}. Opening promotion window.")
                     self.open_promotion_window(move)
-                else:
-                    # Push the move normally
-                    self.push_move(move)
+                    return
+    
+                # Push the move normally if not a promotion
+                self.push_move(move)
     
                 # Switch the timer if it's a timed game
                 if self.timed_game:
@@ -563,41 +591,92 @@ class ChessApp:
                     self.bot_move()
             else:
                 # Invalid move: deselect the piece and update the display
+                print(f"[DEBUG] Move from {self.selected_piece} to {selected_square} is not legal.")
                 self.selected_piece = None
                 self.update_board()
         else:
-            # If no piece is selected, check if the square contains a piece of the current player
+            # No piece is selected, check if the square contains a piece of the current player
             piece = self.board.piece_at(selected_square)
             if piece and piece.color == self.board.turn:
                 self.selected_piece = selected_square
+                print(f"[DEBUG] Selected a piece at {selected_square}")
                 self.highlight_moves(selected_square)  # Highlight possible moves for the selected piece
+            else:
+                print(f"[DEBUG] No valid piece to select at {selected_square}")
 
     def open_promotion_window(self, move):
-        # Window to select promotion piece
+        # Speichern Sie den Zug, damit er in promote_to verwendet werden kann
+        self.move_to_promote = move
+    
+        # Erstellen Sie das Promotionsfenster als vertikales Menü
         promotion_window = tk.Toplevel(self.root)
         promotion_window.title("Promotion")
-        promotion_window.geometry("250x150")
-        promotion_window.configure(bg="black")
+    
+        # Bestimmen Sie die Farbe des Fensters basierend auf der Farbe des Bauern
+        piece_color = self.board.piece_at(move.from_square).color
+        if piece_color == chess.WHITE:
+            bg_color = "Black"
+            fg_color = "white"
+        else:
+            bg_color = "white"
+            fg_color = "black"
+    
+        promotion_window.configure(bg=bg_color)
+    
+        # Koordinaten des Zielfeldes (to_square) abrufen
+        target_square = move.to_square
+        row, col = divmod(target_square, 8)
+        square_widget = self.squares[(7 - row, col)]
+    
+        # Absolute Koordinaten des Feldes auf dem Bildschirm erhalten
+        square_x = square_widget.winfo_rootx()
+        square_y = square_widget.winfo_rooty()
+        square_width = square_widget.winfo_width()
+        square_height = square_widget.winfo_height()
+    
+        # Das Promotionsfenster so positionieren, dass es zentriert über der Schachfeld liegt
+        window_width = square_width
+        window_height = square_height * 4  # Für die 4 Promotionsoptionen
+    
+        # Berechnen Sie die Position basierend auf der Farbe des Bauern
+        if piece_color == chess.WHITE:
+            # Für weiße Bauern, Fenster leicht nach unten verschieben
+            y_offset = square_y - window_height + square_height // 2 + 350  # +30 schiebt das Fenster etwas nach unten
+        else:
+            # Für schwarze Bauern, Fenster leicht nach oben schieben
+            y_offset = square_y - window_height + square_height // 2 + 20  # 20 schiebt das Fenster nach oben
+    
+        x_offset = square_x
+    
+        # Definieren Sie die Größe und Position des Promotionsfensters
+        promotion_window.geometry(f"{window_width}x{window_height}+{x_offset}+{y_offset}")
         promotion_window.transient(self.root)
-        promotion_window.grab_set()  # Make the promotion window modal
+        promotion_window.grab_set()  # Machen Sie das Fenster modaler
     
-        label = tk.Label(promotion_window, text="Choose promotion piece:", font=("Arial", 14), fg="white", bg="black")
-        label.pack(pady=10)
+        # Erstellen Sie die Buttons für die Promotion
+        options_frame = tk.Frame(promotion_window, bg=bg_color)
+        options_frame.pack(expand=True, fill=tk.BOTH)
     
-        options_frame = tk.Frame(promotion_window, bg="black")
-        options_frame.pack()
-    
+        # Funktion promote_to definieren, um den Promotion-Typ festzulegen und den Zug durchzuführen
         def promote_to(piece_type):
-            # Set the move promotion
-            move.promotion = piece_type
-            self.push_move(move)  # Push the move after selecting the promotion piece
+            self.move_to_promote.promotion = piece_type
+            self.push_move(self.move_to_promote)
             promotion_window.destroy()
     
-        # Add buttons for each piece type
-        pieces = [(chess.QUEEN, "Queen"), (chess.ROOK, "Rook"), (chess.BISHOP, "Bishop"), (chess.KNIGHT, "Knight")]
-        for piece, label_text in pieces:
-            button = tk.Button(options_frame, text=label_text, font=("Arial", 14), command=lambda p=piece: promote_to(p))
-            button.pack(side=tk.LEFT, padx=5)
+        # Fügen Sie die Buttons für die Promotion hinzu, jetzt mit den entsprechenden Emojis
+        pieces = [
+            (chess.QUEEN, "♛"),  # Königin
+            (chess.KNIGHT, "♞"),  # Springer
+            (chess.ROOK, "♜"),    # Turm
+            (chess.BISHOP, "♝")   # Läufer
+        ]
+    
+        for piece, emoji in pieces:
+            button = tk.Button(options_frame, text=emoji, font=("Arial", 24),
+                               command=lambda p=piece: promote_to(p),
+                               bg=bg_color, fg=fg_color, borderwidth=0)
+            button.pack(side=tk.TOP, fill=tk.BOTH, expand=True, pady=1)
+
 
     def push_move(self, move):
         # Execute the move on the board
@@ -622,44 +701,52 @@ class ChessApp:
                 self.root.after(1000, self.start_timers)
 
     def display_move_in_output(self, move):
-        # Ajouter deux lignes vides seulement au début de l'affichage des mouvements
+        # Fügen Sie zwei Leerzeilen nur am Anfang der Bewegungsanzeige hinzu
         if len(self.board.move_stack) == 1:
-            # Si c'est le premier mouvement, ajoute deux lignes vides pour espacer
+            # Wenn es der erste Zug ist, fügen Sie zwei Leerzeilen für Abstand hinzu
             self.output_text.configure(state='normal')
             self.output_text.insert(tk.END, "\n\n")
             self.output_text.configure(state='disabled')
     
-        # Déterminer la pièce en mouvement
+        # Bestimmen Sie die Figur, die bewegt wird
         from_piece = self.board.piece_at(move.from_square)
         piece_emoji = self.pieces_emojis.get(from_piece.symbol(), '') if from_piece else ''
         
-        # Convertir le mouvement au format d'affichage
-        display_move = f"{move.uci()[2:]}"
+        # Konvertieren Sie den Zug in ein Anzeigeformat
+        display_move = move.uci()[2:]
+        
+        # Prüfen, ob es sich um einen Schlagzug handelt
+        if self.board.is_capture(move):
+            capture_indicator = "x"  # Fügen Sie "x" hinzu, um einen Schlag anzuzeigen
+            to_square = chess.square_name(move.to_square)  # Name des Zielquadrats, z.B. "e5"
+            display_move = f"{capture_indicator}{to_square}"
+        else:
+            # Bei normalen Zügen ohne Schlag, die Zielposition direkt nehmen
+            display_move = move.uci()[2:]
     
-       # Vérifier les cas spéciaux comme le roque, l'échec et le mat
-       # Vérifier les cas spéciaux comme le roque, l'échec et le mat
+        # Überprüfen Sie spezielle Fälle wie Rochade, Schach und Matt
         if from_piece and from_piece.piece_type == chess.KING:
-          # Roque court ou long, pour blanc et noir
-          if (move.from_square == chess.E1 and move.to_square == chess.G1) or (move.from_square == chess.E8 and move.to_square == chess.G8):
-              display_move = "0-0"  # Roque court
-          elif (move.from_square == chess.E1 and move.to_square == chess.C1) or (move.from_square == chess.E8 and move.to_square == chess.C8):
-              display_move = "0-0-0"  # Roque long
-
-        elif self.board.is_checkmate():
-             display_move += '#'
-        elif self.board.is_check():
-             display_move += '+'
+            # Kurz- oder Langrochade für weiß und schwarz
+            if (move.from_square == chess.E1 and move.to_square == chess.G1) or (move.from_square == chess.E8 and move.to_square == chess.G8):
+                display_move = "0-0"  # Kurzrochade
+            elif (move.from_square == chess.E1 and move.to_square == chess.C1) or (move.from_square == chess.E8 and move.to_square == chess.C8):
+                display_move = "0-0-0"  # Langrochade
     
-        # Déterminer le numéro du mouvement et s'il s'agit du tour des blancs ou des noirs
+        elif self.board.is_checkmate():
+            display_move += '#'
+        elif self.board.is_check():
+            display_move += '+'
+    
+        # Bestimmen Sie die Zugnummer und ob es der Zug der weißen oder schwarzen Seite ist
         move_number = (len(self.board.move_stack) + 1) // 2
         if len(self.board.move_stack) % 2 == 1:
-            # Mouvement des blancs
+            # Zug der weißen Seite
             formatted_move = f"{move_number}. {piece_emoji} {display_move}  "
         else:
-            # Mouvement des noirs sur la même ligne
+            # Zug der schwarzen Seite auf derselben Zeile
             formatted_move = f"{piece_emoji} {display_move}\n"
     
-        # Ajouter le mouvement dans la zone de texte de sortie
+        # Fügen Sie den Zug in das Ausgabetextfeld ein
         self.output_text.configure(state='normal')
         self.output_text.insert(tk.END, formatted_move)
         self.output_text.configure(state='disabled')
