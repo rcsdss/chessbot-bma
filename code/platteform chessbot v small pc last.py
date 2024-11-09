@@ -6,20 +6,20 @@ Created on Fri Nov  1 14:45:32 2024
 """
 
 
-import tkinter as tk
-from tkinter import messagebox, scrolledtext, filedialog
-import chess
-import chess.engine
-import os
-import threading  # Import threading for running tasks in background
-import comtypes.client
-import webbrowser
+import tkinter as tk  # GUI-Bibliothek für das Erstellen von Benutzeroberflächen
+from tkinter import messagebox, scrolledtext, filedialog  # Weitere GUI-Komponenten für Nachrichten, Scrollen und Dateiauswahl
+import chess  # Bibliothek für Schachlogik
+import chess.engine  # Modul für die Schach-Engine-Interaktion
+import os  # Betriebssystem-Operationen und Dateipfade
+import threading  # Für Aufgaben im Hintergrund
+import comtypes.client  # Schnittstelle für Word-Integration
+import webbrowser  # Modul zum Öffnen von URLs im Browser
 
 VERSION = "chessbot platteforme v2"
 
 class ChessApp:
     def __init__(self, root):
-        # Initial setup for the ChessApp class
+        # Initial setup für die ChessApp class
         self.root = root
         self.root.title("Willkommen zu dem BR ChessBot v2")
         self.root.state('zoomed')  # Start in full screen
@@ -38,10 +38,10 @@ class ChessApp:
             piece_emoji = self.pieces_emojis.get(piece_symbol, '')
             print(f"Square: {chess.square_name(square)}, Piece: {piece}, Symbol: {piece_symbol}, Emoji: {piece_emoji}")
             
-        # Set game mode to default ('einfach' - easy)
+        # Spielmodus auf default setzen('einfach' - easy)
         self.game_mode = tk.StringVar(value="einfach")
 
-        # Initialize various game state variables
+        # Initialisiere unterschiedliche Spielvariabeln
         self.squares = {}
         self.selected_piece = None
         self.captured_pieces_player = []
@@ -422,7 +422,7 @@ class ChessApp:
         self.button_frame.grid(row=0, column=2, sticky="nsew")
     
         # "Rules 📖" and "Doku 📝" Buttons above output frame
-        self.rules_button = tk.Button(self.button_frame, text="📖 Rules", font=("Arial", 16), bg="black", fg="White", command=self.open_chess_rules,borderwidth=0, relief=tk.FLAT)
+        self.rules_button = tk.Button(self.button_frame, text="📖 Regeln", font=("Arial", 16), bg="black", fg="White", command=self.open_chess_rules,borderwidth=0, relief=tk.FLAT)
         self.rules_button.pack(side=tk.LEFT, padx=10, pady=5)
     
         self.doku_button = tk.Button(self.button_frame, text="📝 Doku", font=("Arial", 16), bg="black", fg="white", command=self.open_documentation,borderwidth=0, relief=tk.FLAT)
@@ -444,27 +444,6 @@ class ChessApp:
         self.disable_board()
         self.update_board()
 
-
-    def update_advantage(self):
-        # Calculer l'avantage des pièces capturées
-        player_advantage = sum(self.piece_values[piece] for piece in self.captured_pieces_bot)
-        bot_advantage = sum(self.piece_values[piece] for piece in self.captured_pieces_player)
-    
-        advantage = player_advantage - bot_advantage
-    
-        # Mettre à jour l'indicateur d'avantage pour le joueur et le bot
-        if advantage > 0:
-            self.player_advantage_label.configure(text=f"+{advantage}")
-            self.bot_advantage_label.configure(text="")
-        elif advantage < 0:
-            self.bot_advantage_label.configure(text=f"+{-advantage}")
-            self.player_advantage_label.configure(text="")
-        else:
-            self.player_advantage_label.configure(text="")
-            self.bot_advantage_label.configure(text="")
-        
-        # Forcer la mise à jour de l'affichage pour s'assurer que les changements sont visibles
-        self.root.update_idletasks()
 
     def toggle_clock(self):
         # Toggle between activating and deactivating the timed game by clicking on the clock icon
@@ -545,22 +524,19 @@ class ChessApp:
     
         advantage = player_advantage - bot_advantage
     
-        # Effacer l'indicateur précédent
-        self.player_advantage_label.configure(text="")
-        self.bot_advantage_label.configure(text="")
-    
-        # Mettre à jour l'indicateur d'avantage
+        # Mettre à jour l'indicateur d'avantage pour le joueur et le bot
         if advantage > 0:
-            # Indicateur pour le joueur (Spieler 1)
             self.player_advantage_label.configure(text=f"+{advantage}")
+            self.bot_advantage_label.configure(text="")
         elif advantage < 0:
-            # Indicateur pour le bot (Spieler 2)
             self.bot_advantage_label.configure(text=f"+{-advantage}")
-    
-        # Forcer la mise à jour de l'affichage pour que les changements soient visibles
+            self.player_advantage_label.configure(text="")
+        else:
+            self.player_advantage_label.configure(text="")
+            self.bot_advantage_label.configure(text="")
+        
+        # Forcer la mise à jour de l'affichage pour s'assurer que les changements sont visibles
         self.root.update_idletasks()
-
-
 
   
     def reset_game(self):
@@ -877,76 +853,68 @@ class ChessApp:
             captured_piece = self.board.piece_at(result.move.to_square)
             if captured_piece is not None:
                 self.captured_pieces_player.append(captured_piece.symbol())
-    
+        
         # Push the move
         self.board.push(result.move)
         self.update_board()
         self.display_move_in_output(result.move)  # Display bot's move
         self.check_end_game()
-    
+        
         # Switch timer if timed game
         if self.timed_game:
             self.switch_timer()
 
-    def display_move_in_output(self, move, from_piece):
-        # Ajouter des lignes vides uniquement au début de l'affichage des mouvements
+    def display_move_in_output(self, move, from_piece=None):
+        # Ajouter deux lignes vides seulement au début de l'affichage des mouvements
         if len(self.board.move_stack) == 1:
+            # Si c'est le premier mouvement, ajoute deux lignes vides pour espacer
             self.output_text.configure(state='normal')
             self.output_text.insert(tk.END, "\n\n")
             self.output_text.configure(state='disabled')
-    
+            
         # Déterminer l'emoji de la pièce déplacée
         piece_emoji = ''
         if from_piece:
             piece_symbol = from_piece.symbol()
             piece_emoji = self.pieces_emojis.get(piece_symbol, '')
-            print(f"[DEBUG] Piece Symbol: {piece_symbol}, Emoji: {piece_emoji}")
-    
-        # Si aucune correspondance trouvée, signaler une alerte
-        if not piece_emoji:
-            print(f"[WARNING] Aucun emoji trouvé pour le symbole de la pièce : {piece_symbol}")
     
         # Déterminer la case cible
         target_square = chess.square_name(move.to_square)
     
-        # Créer la représentation du mouvement
+        # Construire la représentation du mouvement
         display_move = f"{piece_emoji}{target_square}"
     
-        # Vérifier les cas spéciaux comme le roque, la promotion, ou les prises
+        # Gestion des cas spéciaux : roque, promotion, prise en passant
         if from_piece and from_piece.piece_type == chess.KING:
-            # Roque
             if move.from_square == chess.E1 and move.to_square == chess.G1:
-                display_move = "0-0"  # Petit roque
+                display_move = "0-0"
             elif move.from_square == chess.E1 and move.to_square == chess.C1:
-                display_move = "0-0-0"  # Grand roque
+                display_move = "0-0-0"
             elif move.from_square == chess.E8 and move.to_square == chess.G8:
-                display_move = "0-0"  # Petit roque (noir)
+                display_move = "0-0"
             elif move.from_square == chess.E8 and move.to_square == chess.C8:
-                display_move = "0-0-0"  # Grand roque (noir)
+                display_move = "0-0-0"
         elif from_piece and from_piece.piece_type == chess.PAWN:
-            # Promotion
             if move.promotion:
                 promotion_piece = chess.Piece(move.promotion, from_piece.color)
                 promotion_emoji = self.pieces_emojis.get(promotion_piece.symbol(), '')
                 display_move = f"{piece_emoji}{target_square}={promotion_emoji}"
-            # Prise en passant
             elif self.board.is_en_passant(move):
-                display_move = f"{piece_emoji}{target_square}!"  # Ajout de "!" pour en passant
-            else:
-                display_move = f"{piece_emoji}{target_square}"
-       
+                display_move = f"{piece_emoji}{target_square}!"
     
-        # Vérifier si le roi est en échec ou échec et mat après le coup
+        # Ajouter notation pour échec ou mat
         if self.board.is_checkmate():
             display_move += '#'
         elif self.board.is_check():
             display_move += '+'
     
-        # Déterminer le numéro du coup et le format
+        # Déterminer si c'est le tour des Blancs ou des Noirs
         move_number = (len(self.board.move_stack) + 1) // 2
-        if len(self.board.move_stack) % 2 == 1:
-            formatted_move = f"{move_number}. {display_move}  "
+        if self.board.turn == chess.BLACK:
+            # Ajout du numéro de coup pour les Blancs seulement
+            formatted_move = f"{move_number}. {display_move} "
         else:
+            # Ne pas répéter le numéro de coup pour les Noirs
             formatted_move = f"{display_move}\n"
     
         # Ajouter le coup dans le champ de texte
