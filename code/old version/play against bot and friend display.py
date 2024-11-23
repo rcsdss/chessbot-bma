@@ -46,7 +46,7 @@ class ChessApp:
         self.root.configure(bg="black")
         self.board = chess.Board()
         # Set relative path use os.path 
-        self.engine_path = "C:/Users/Robin Corbonnois/OneDrive - TBZ/Desktop/python/chessbot_project_2/github/stockfish/stockfish-windows-x86-64-avx2.exe"
+        self.engine_path = r"C:\Users\Robin Corbonnois\OneDrive - TBZ\Desktop\python\chessbot_project_2\github\code\stockfish\stockfish-windows-x86-64-avx2.exe"
         if not self.engine_path:
             messagebox.showerror("Fehler", "Kein Pfad zur Engine ausgewählt. Das Programm wird beendet.")
             root.quit()
