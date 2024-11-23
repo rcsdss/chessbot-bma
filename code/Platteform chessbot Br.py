@@ -966,26 +966,53 @@ class ChessApp:
         if hasattr(self, 'end_game_displayed') and self.end_game_displayed:
             return
         self.end_game_displayed = True
-
-        # Display a popup when the game ends
+    
+        # Create the popup window for the end game
         end_game_window = tk.Toplevel(self.root)
         end_game_window.title("Spielende")
         end_game_window.configure(bg="white")
-
+    
+        # Get board frame's position and dimensions
+        board_x = self.board_frame.winfo_rootx()
+        board_y = self.board_frame.winfo_rooty()
+        board_width = self.board_frame.winfo_width()
+        board_height = self.board_frame.winfo_height()
+    
+        # Set the popup dimensions
+        popup_width = 325   #(x)
+        popup_height = 175  #(y)
+    
+        # Calculate the center position based on the board
+        x_offset = board_x + (board_width - popup_width) // 2
+        y_offset = board_y + (board_height - popup_height) // 2
+    
+        # Position the popup in the center of the board
+        end_game_window.geometry(f"{popup_width}x{popup_height}+{x_offset}+{y_offset}")
+        
+        # Make the popup modal and keep it in the foreground
+        end_game_window.transient(self.root)
+        end_game_window.grab_set()  # Make it modal
+        end_game_window.lift()      # Bring to the front
+    
+        # Display result and reason labels
         result_label = tk.Label(end_game_window, text=result, font=("Arial", 20, "bold"), fg="black", bg="white")
         result_label.pack(pady=10)
-
+    
         reason_label = tk.Label(end_game_window, text=reason, font=("Arial", 14), fg="gray", bg="white")
         reason_label.pack(pady=5)
-
+    
+        # Buttons for new game and rematch
         button_frame = tk.Frame(end_game_window, bg="white")
         button_frame.pack(pady=10)
-
+    
         new_game_button = tk.Button(button_frame, text="Neues Spiel", font=("Arial", 16), bg="green", fg="white", command=lambda: [self.reset_game(), end_game_window.destroy(), self.clear_end_game_displayed()])
         new_game_button.grid(row=0, column=0, padx=5)
-
+    
         rematch_button = tk.Button(button_frame, text="Revanche", font=("Arial", 16), bg="orange", fg="white", command=lambda: [self.reset_game(), self.start_game(), end_game_window.destroy(), self.clear_end_game_displayed()])
         rematch_button.grid(row=0, column=1, padx=5)
+    
+        # Keep focus on popup until closed
+        end_game_window.wait_window()
 
     def clear_end_game_displayed(self):
         # Reset the end game flag
