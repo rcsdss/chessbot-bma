@@ -10,7 +10,7 @@ import tkinter as tk  # GUI-Bibliothek für das Erstellen von Benutzeroberfläch
 from tkinter import messagebox, scrolledtext, filedialog  # Weitere GUI-Komponenten für Nachrichten, Scrollen und Dateiauswahl
 import chess  # Bibliothek für Schachlogik
 import chess.engine  # Modul für die Schach-Engine-Interaktion
-import os  # Betriebssystem-Operationen und Dateipfade
+import os, sys  # Betriebssystem-Operationen und Dateipfade
 import threading  # Für Aufgaben im Hintergrund
 import comtypes.client  # Schnittstelle für Word-Integration
 import webbrowser  # Modul zum Öffnen von URLs im Browser
@@ -126,19 +126,28 @@ class ChessApp:
         
     def open_documentation(self):
         try:
-            # Obtenir le chemin absolu du fichier
-            doc_path = os.path.abspath("Schriftliche_Doku.docx")
-            
-            # Créer un objet pour l'application Word
+            # Définir le chemin du fichier selon l'environnement (EXE ou script Python)
+            if hasattr(sys, '_MEIPASS'):  # Mode EXE (PyInstaller)
+                base_path = sys._MEIPASS
+            else:  # Mode script Python
+                base_path = os.path.abspath(".")
+    
+            # Construire le chemin absolu vers le fichier
+            doc_path = os.path.join(base_path, "chessbot_BR_Schriftliche_Arbeit.docx")
+    
+            # Vérifier si le fichier existe
+            if not os.path.exists(doc_path):
+                raise FileNotFoundError(f"Datei nicht gefunden: {doc_path}")
+    
+            # Ouvrir le fichier avec Microsoft Word
             word = comtypes.client.CreateObject('Word.Application')
-            word.Visible = True  # Ouvrir Word en mode visible pour l'utilisateur
-            
-            # Ouvrir le document
+            word.Visible = True
             word.Documents.Open(doc_path)
+        except FileNotFoundError as fnf_error:
+            messagebox.showerror("Fehler", f"Die Dokumentation wurde nicht gefunden: {fnf_error}")
         except Exception as e:
-            messagebox.showerror("Fehler", f"Die Dokumentation konnte nicht geöffnet werden: {e}")
-
-
+            messagebox.showerror("Fehler", f"Ein Fehler ist aufgetreten: {e}")
+            
     def update_bot_information(self):
         # Get the selected difficulty
         difficulty = self.game_mode.get()
@@ -243,8 +252,13 @@ class ChessApp:
 
     def load_engine(self):
         # Utilisation d'un chemin fixe pour charger Stockfish
-        engine_path = os.path.join(os.path.dirname(__file__), "stockfish", "stockfish-windows-x86-64-avx2.exe")
-        
+        base_path = os.path.dirname(os.path.abspath(__file__))
+        if getattr(sys, 'frozen', False):  # Check if running as a bundled app
+            # The application is frozen
+            base_path = os.path.dirname(sys.executable)    
+
+        engine_path = os.path.join(base_path, "stockfish", "stockfish-windows-x86-64-avx2.exe")
+                
         # Vérification si l'engine est disponible dans le chemin par défaut
         if os.path.isfile(engine_path):
             try:
